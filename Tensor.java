@@ -25,22 +25,22 @@ public class Tensor{
 		public Tensor(int[] dimensions, InitOp op){
 			this.dimensions = dimensions; // does not copy
 			this.order = dimensions.length;
-			int[] index = new int[order];
+			Index index = new Index(order);
 			switch(order){
 				case 0: object = op.execute(dimensions, index);break;
 				case 1: {
 					double[] valsCopy = new double[dimensions[0]];
-					for(index[0] = 0; index[0] < dimensions[0]; index[0]++){
-						valsCopy[index[0]] = op.execute(dimensions, index);
+					for(index.values[0] = 0; index.values[0] < dimensions[0]; index.values[0]++){
+						valsCopy[index.values[0]] = op.execute(dimensions, index);
 					}
 					object = valsCopy;
 					break;
 				}
 				case 2: {
 					double[][] valsCopy = new double[dimensions[0]][dimensions[1]];
-					for(index[0] = 0; index[0] < dimensions[0]; index[0]++){
-						for(index[1] = 0; index[1] < dimensions[1]; index[1]++){
-							valsCopy[index[0]][index[1]] = op.execute(dimensions, index);
+					for(index.values[0] = 0; index.values[0] < dimensions[0]; index.values[0]++){
+						for(index.values[1] = 0; index.values[1] < dimensions[1]; index.values[1]++){
+							valsCopy[index.values[0]][index.values[1]] = op.execute(dimensions, index);
 						}
 					}
 					object = valsCopy;
@@ -48,10 +48,10 @@ public class Tensor{
 				}
 				case 3: {
 					double[][][] valsCopy = new double[dimensions[0]][dimensions[1]][dimensions[2]];
-					for(index[0] = 0; index[0] < dimensions[0]; index[0]++){
-						for(index[1] = 0; index[1] < dimensions[1]; index[1]++){
-							for(index[2] = 0; index[2] < dimensions[2]; index[2]++){
-								valsCopy[index[0]][index[1]][index[2]] = op.execute(dimensions, index);
+					for(index.values[0] = 0; index.values[0] < dimensions[0]; index.values[0]++){
+						for(index.values[1] = 0; index.values[1] < dimensions[1]; index.values[1]++){
+							for(index.values[2] = 0; index.values[2] < dimensions[2]; index.values[2]++){
+								valsCopy[index.values[0]][index.values[1]][index.values[2]] = op.execute(dimensions, index);
 							}
 						}
 					}
@@ -60,11 +60,11 @@ public class Tensor{
 				}
 				case 4: {
 					double[][][][] valsCopy = new double[dimensions[0]][dimensions[1]][dimensions[2]][dimensions[3]];
-					for(index[0] = 0; index[0] < dimensions[0]; index[0]++){
-						for(index[1] = 0; index[1] < dimensions[1]; index[1]++){
-							for(index[2] = 0; index[2] < dimensions[2]; index[2]++){
-								for(index[3] = 0; index[3] < dimensions[3]; index[3]++){
-									valsCopy[index[0]][index[1]][index[2]][index[3]] = op.execute(dimensions, index);
+					for(index.values[0] = 0; index.values[0] < dimensions[0]; index.values[0]++){
+						for(index.values[1] = 0; index.values[1] < dimensions[1]; index.values[1]++){
+							for(index.values[2] = 0; index.values[2] < dimensions[2]; index.values[2]++){
+								for(index.values[3] = 0; index.values[3] < dimensions[3]; index.values[3]++){
+									valsCopy[index.values[0]][index.values[1]][index.values[2]][index.values[3]] = op.execute(dimensions, index);
 								}
 							}
 						}
@@ -80,13 +80,14 @@ public class Tensor{
 		public Tensor(Tensor tensor, CopyOp op){
 			this.dimensions = tensor.dimensions; // does not copy
 			this.order = tensor.order;
+			Index index = new Index(order);
 			switch(order){
-				case 0: Double val = (Double)tensor.object; object = op.execute(val);break;
+				case 0: Double val = (Double)tensor.object; object = op.execute(val, index);break;
 				case 1: {
 					double[] vals = ((double[])tensor.object);
 					double[] valsCopy = new double[vals.length];
-					for(int a = 0; a < vals.length; a++){
-						valsCopy[a] = op.execute(vals[a]);
+					for(index.values[0] = 0; index.values[0] < dimensions[0]; index.values[0]++){
+						valsCopy[index.values[0]] = op.execute(vals[index.values[0]], index);
 					}
 					object = valsCopy;
 					break;
@@ -94,9 +95,9 @@ public class Tensor{
 				case 2: {
 					double[][] vals = ((double[][])tensor.object);
 					double[][] valsCopy = new double[vals.length][vals[0].length];
-					for(int a = 0; a < vals.length; a++){
-						for(int b = 0; b < vals[0].length; b++){
-							valsCopy[a][b] = op.execute(vals[a][b]);
+					for(index.values[0] = 0; index.values[0] < dimensions[0]; index.values[0]++){
+						for(index.values[1] = 0; index.values[1] < dimensions[1]; index.values[1]++){
+							valsCopy[index.values[0]][index.values[1]] = op.execute(vals[index.values[0]][index.values[1]], index);
 						}
 					}
 					object = valsCopy;
@@ -105,10 +106,10 @@ public class Tensor{
 				case 3: {
 					double[][][] vals = ((double[][][])tensor.object);
 					double[][][] valsCopy = new double[vals.length][vals[0].length][vals[0][0].length];
-					for(int a = 0; a < vals.length; a++){
-						for(int b = 0; b < vals[0].length; b++){
-							for(int c = 0; c < vals[0][0].length; c++){
-								valsCopy[a][b][c] = op.execute(vals[a][b][c]);
+					for(index.values[0] = 0; index.values[0] < dimensions[0]; index.values[0]++){
+						for(index.values[1] = 0; index.values[1] < dimensions[1]; index.values[1]++){
+							for(index.values[2] = 0; index.values[2] < dimensions[2]; index.values[2]++){
+								valsCopy[index.values[0]][index.values[1]][index.values[2]] = op.execute(vals[index.values[0]][index.values[1]][index.values[2]], index);
 							}
 						}
 					}
@@ -118,11 +119,11 @@ public class Tensor{
 				case 4: {
 					double[][][][] vals = ((double[][][][])tensor.object);
 					double[][][][] valsCopy = new double[vals.length][vals[0].length][vals[0][0].length][vals[0][0][0].length];
-					for(int a = 0; a < vals.length; a++){
-						for(int b = 0; b < vals[0].length; b++){
-							for(int c = 0; c < vals[0][0].length; c++){
-								for(int d = 0; d < vals[0][0][0].length; d++){
-									valsCopy[a][b][c][d] = op.execute(vals[a][b][c][d]);
+					for(index.values[0] = 0; index.values[0] < dimensions[0]; index.values[0]++){
+						for(index.values[1] = 0; index.values[1] < dimensions[1]; index.values[1]++){
+							for(index.values[2] = 0; index.values[2] < dimensions[2]; index.values[2]++){
+								for(index.values[3] = 0; index.values[3] < dimensions[3]; index.values[3]++){
+									valsCopy[index.values[0]][index.values[1]][index.values[2]][index.values[3]] = op.execute(vals[index.values[0]][index.values[1]][index.values[2]][index.values[3]], index);
 								}
 							}
 						}
@@ -136,6 +137,59 @@ public class Tensor{
 
 		public Tensor(Tensor tensor){
 			this(tensor, CopyOp.identity);
+		}
+
+		public void copyTo(Tensor destTensor, CopyOp op){
+			Tensor sourceTensor = this;
+			Index index = new Index(order);
+			switch(order){
+				case 0: Double val = (Double)sourceTensor.object; destTensor.object = op.execute(val, index);break;
+				case 1: {
+					double[] vals = ((double[])sourceTensor.object);
+					double[] valsCopy = (double[])(destTensor.getObject());
+					for(index.values[0] = 0; index.values[0] < dimensions[0]; index.values[0]++){
+						valsCopy[index.values[0]] = op.execute(vals[index.values[0]], index);
+					}
+					break;
+				}
+				case 2: {
+					double[][] vals = ((double[][])sourceTensor.object);
+					double[][] valsCopy = (double[][])(destTensor.getObject());
+					for(index.values[0] = 0; index.values[0] < dimensions[0]; index.values[0]++){
+						for(index.values[1] = 0; index.values[1] < dimensions[1]; index.values[1]++){
+							valsCopy[index.values[0]][index.values[1]] = op.execute(vals[index.values[0]][index.values[1]], index);
+						}
+					}
+					break;
+				}
+				case 3: {
+					double[][][] vals = ((double[][][])sourceTensor.object);
+					double[][][] valsCopy = (double[][][])(destTensor.getObject());
+					for(index.values[0] = 0; index.values[0] < dimensions[0]; index.values[0]++){
+						for(index.values[1] = 0; index.values[1] < dimensions[1]; index.values[1]++){
+							for(index.values[2] = 0; index.values[2] < dimensions[2]; index.values[2]++){
+								valsCopy[index.values[0]][index.values[1]][index.values[2]] = op.execute(vals[index.values[0]][index.values[1]][index.values[2]], index);
+							}
+						}
+					}
+					break;
+				}
+				case 4: {
+					double[][][][] vals = ((double[][][][])sourceTensor.object);
+					double[][][][] valsCopy = (double[][][][])(destTensor.getObject());
+					for(index.values[0] = 0; index.values[0] < dimensions[0]; index.values[0]++){
+						for(index.values[1] = 0; index.values[1] < dimensions[1]; index.values[1]++){
+							for(index.values[2] = 0; index.values[2] < dimensions[2]; index.values[2]++){
+								for(index.values[3] = 0; index.values[3] < dimensions[3]; index.values[3]++){
+									valsCopy[index.values[0]][index.values[1]][index.values[2]][index.values[3]] = op.execute(vals[index.values[0]][index.values[1]][index.values[2]][index.values[3]], index);
+								}
+							}
+						}
+					}
+					break;
+				}
+				default: System.out.println("Unexpected order");
+			}
 		}
 
 		public double getValue(Index index){

@@ -11,8 +11,16 @@ public class OpNode extends Node{
 		inputs = new ArrayList<Node>();
 	}
 
+	public TensorOperation getOperation(){
+		return operation;
+	}
+
 	public ArrayList<Node> getInputs(){
 		return inputs;
+	}
+
+	public void setInputs(ArrayList<Node> inputs){
+		this.inputs = inputs;
 	}
 
 	public void addInput(Node... nodes){
@@ -28,13 +36,40 @@ public class OpNode extends Node{
 	public boolean runNode(){
 		if(!finished){
 			Tensor[] inputTensors = new Tensor[inputs.size()];
+			int[][] inputDimensions = new int[inputs.size()][];
 			for(int j = 0; j < inputs.size(); j++){
 				if(!inputs.get(j).runNode()){
 					return false;
 				}
 				inputTensors[j] = inputs.get(j).getTensor();
+				inputDimensions[j] = inputTensors[j].getDimensions();
+				// System.out.println("OpNode " + getId() + ", input " + j + ": ");
+				// inputTensors[j].printTensor();
 			}
-			setTensor(operation.execute(inputTensors));
+		
+			int[] outputDimensions = operation.getOutputDimensions(inputDimensions);
+
+			Tensor currentTensor = getTensor();
+			boolean sameSize = currentTensor != null;
+			if(currentTensor != null){
+				int[] currentDimensions = currentTensor.getDimensions();
+				sameSize = (outputDimensions.length == currentDimensions.length);
+				for(int j = 0; sameSize && j < outputDimensions.length; j++){
+					if(outputDimensions[j] != currentDimensions[j]){
+						sameSize = false;
+					}
+				}
+			}
+			if(!sameSize){
+				setTensor(new Tensor(outputDimensions));
+			}
+			operation.execute(getTensor(), inputTensors);
+
+			if(Graph.DEBUG){
+				System.out.println("OpNode " + getId() + ": Output");
+				getTensor().printTensor();
+			}
+			
 			finished = true;
 		}
 		return true;

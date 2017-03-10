@@ -9,6 +9,13 @@ public class Index{
 			this.values = values;
 		}
 
+		public Index(Index index){
+			values = new int[index.values.length];
+			for(int j = 0; j < values.length; j++){
+				values[j] = index.values[j];
+			}
+		}
+
 		// returns false if finished
 		public boolean increment(Tensor t){
 			for(int j = values.length - 1; j >= 0; j--){

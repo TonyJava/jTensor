@@ -192,6 +192,55 @@ public class Tensor{
 			}
 		}
 
+		public void operate(CopyOp op){
+			Tensor sourceTensor = this;
+			Index index = new Index(order);
+			switch(order){
+				case 0: Double val = (Double)sourceTensor.object; object = op.execute(val, index);break;
+				case 1: {
+					double[] vals = ((double[])sourceTensor.object);
+					for(index.values[0] = 0; index.values[0] < dimensions[0]; index.values[0]++){
+						vals[index.values[0]] = op.execute(vals[index.values[0]], index);
+					}
+					break;
+				}
+				case 2: {
+					double[][] vals = ((double[][])sourceTensor.object);
+					for(index.values[0] = 0; index.values[0] < dimensions[0]; index.values[0]++){
+						for(index.values[1] = 0; index.values[1] < dimensions[1]; index.values[1]++){
+							vals[index.values[0]][index.values[1]] = op.execute(vals[index.values[0]][index.values[1]], index);
+						}
+					}
+					break;
+				}
+				case 3: {
+					double[][][] vals = ((double[][][])sourceTensor.object);
+					for(index.values[0] = 0; index.values[0] < dimensions[0]; index.values[0]++){
+						for(index.values[1] = 0; index.values[1] < dimensions[1]; index.values[1]++){
+							for(index.values[2] = 0; index.values[2] < dimensions[2]; index.values[2]++){
+								vals[index.values[0]][index.values[1]][index.values[2]] = op.execute(vals[index.values[0]][index.values[1]][index.values[2]], index);
+							}
+						}
+					}
+					break;
+				}
+				case 4: {
+					double[][][][] vals = ((double[][][][])sourceTensor.object);
+					for(index.values[0] = 0; index.values[0] < dimensions[0]; index.values[0]++){
+						for(index.values[1] = 0; index.values[1] < dimensions[1]; index.values[1]++){
+							for(index.values[2] = 0; index.values[2] < dimensions[2]; index.values[2]++){
+								for(index.values[3] = 0; index.values[3] < dimensions[3]; index.values[3]++){
+									vals[index.values[0]][index.values[1]][index.values[2]][index.values[3]] = op.execute(vals[index.values[0]][index.values[1]][index.values[2]][index.values[3]], index);
+								}
+							}
+						}
+					}
+					break;
+				}
+				default: System.out.println("Unexpected order");
+			}
+		}
+
 		public double getValue(Index index){
 			double returnValue = 0;
 			switch(order){

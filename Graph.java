@@ -87,25 +87,33 @@ public class Graph{
 		node.setTensor(tensor);
 	}
 
-	public int trainGradientDescent(final double learningRate, int target){
-
+	public int trainGradientDescent(double learningRate, int target){
 		int trainId = getNextId();
-		TrainingNode trainingNode = new TrainingNode(trainId);
+		TrainingNode trainingNode = new GradientDescentNode(trainId, learningRate);
 		idNodeTable.put(trainId, trainingNode);
+
+		initTraining(target, trainingNode);
+
+		return trainId;
+	}
+
+	public void initTraining(int target, TrainingNode trainingNode){
+
+		
 
 		OpNode targetNode = (OpNode)idNodeTable.get(target);
 
 		// Find path from target to all variables
 
 		// Create constant -learningRate
-		Tensor tConstLearningRate = new Tensor(targetNode.getDimensions(), new InitOp(){
+		Tensor tConst = new Tensor(targetNode.getDimensions(), new InitOp(){
 			public double execute(int[] dimensions, Index index){
-				return -1 * learningRate;
+				return 1;
 			}
 		});
 
 		int varId = getNextId();
-		ConstantNode constantNode = new ConstantNode(varId, tConstLearningRate);
+		ConstantNode constantNode = new ConstantNode(varId, tConst);
 		idNodeTable.put(varId, constantNode);
 
 		// Create gradient opNodes
@@ -155,8 +163,6 @@ public class Graph{
 			}
 
 		}
-
-		return trainId;
 
 	}
 

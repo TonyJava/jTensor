@@ -2,7 +2,7 @@ public class Operations{
 	
 	// Input: [a, b], [c, d]
 	// Output: [a, d]
-	public static class MatMul extends TensorOperation{
+	public static class MatMult extends TensorOperation{
 
 		public void execute(Tensor output, Tensor... inputs){
 			double[][] matrix1 = (double[][])(inputs[0].getObject());
@@ -65,19 +65,21 @@ public class Operations{
 						public void execute(Tensor output, Tensor... inputs){
 							double[][] matrix1 = (double[][])(inputs[0].getObject()); // gradients [n, o]
 							double[][] matrix2 = (double[][])(inputs[1].getObject()); // inputs [n, i]
-							int[] outputMatrixDimensions = {matrix1.length, matrix2[0].length, matrix1[0].length};
-							double[][][] outputMatrix = (double[][][])(output.getObject());
-							for(int n = 0; n < outputMatrixDimensions[0]; n++){
-								for(int x = 0; x < outputMatrixDimensions[1]; x++){
-									for(int y = 0; y < outputMatrixDimensions[2]; y++){
-										outputMatrix[n][x][y] = matrix2[n][x] * matrix1[n][y];
+							int[] outputMatrixDimensions = {matrix2[0].length, matrix1[0].length};
+							double[][] outputMatrix = (double[][])(output.getObject());
+							for(int x = 0; x < outputMatrixDimensions[0]; x++){
+								for(int y = 0; y < outputMatrixDimensions[1]; y++){
+									double sum = 0;
+									for(int n = 0; n < matrix1.length; n++){
+										sum += matrix2[n][x] * matrix1[n][y];
 									}
+									outputMatrix[x][y] = sum;
 								}
 							}
 						}
 						@Override
 						public int[] getOutputDimensions(int[][] inputDimensions){
-							int[] retVal = {inputDimensions[0][0], inputDimensions[1][1], inputDimensions[0][1]};
+							int[] retVal = {inputDimensions[1][1], inputDimensions[0][1]};
 							return retVal;
 						}
 					};
@@ -105,6 +107,43 @@ public class Operations{
 					outputMatrix[x][y] = matrix1[x][y] + vec[y];
 				}
 			}
+		}
+
+		@Override
+		public TensorDerivativeInfo getDerivative(int inputIndex){
+			TensorOperation derivativeOp;
+			switch(inputIndex){
+				// wrt inputs
+				case 0: 
+					derivativeOp = new TensorOperation(){
+						public void execute(Tensor output, Tensor... inputs){
+							inputs[0].copyTo(output, CopyOp.identity);
+						}
+					};
+				break;
+				// wrt weights
+				default: 
+					derivativeOp = new TensorOperation(){
+						public void execute(Tensor output, Tensor... inputs){
+							double[][] matrix1 = (double[][])(inputs[0].getObject()); // gradients [n, o]
+							double[] outputMatrix = (double[])(output.getObject());
+							for(int x = 0; x < matrix1[0].length; x++){
+								double sum = 0;
+								for(int n = 0; n < matrix1.length; n++){
+									sum += matrix1[n][x];
+								}
+								outputMatrix[x] = sum;
+							}
+						}
+						@Override
+						public int[] getOutputDimensions(int[][] inputDimensions){
+							int[] retVal = {inputDimensions[0][1]};
+							return retVal;
+						}
+					};
+			}
+			int[] inputsNeeded = {};
+			return new TensorDerivativeInfo(derivativeOp, inputsNeeded);
 		}
 	}
 

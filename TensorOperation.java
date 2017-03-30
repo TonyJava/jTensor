@@ -11,7 +11,7 @@ public abstract class TensorOperation{
 	}
 
 	// Returns gradients of operation with respect to given input (index base 0 of execute param)
-	public TensorDerivativeInfo getDerivative(int inputIndex){
+	public TensorDerivativeInfo getDerivative(final int inputIndex){
 		TensorOperation derivativeOp = new TensorOperation(){
 			public void execute(Tensor output, Tensor... inputs){
 				inputs[0].copyTo(output, CopyOp.identity);

@@ -5,7 +5,8 @@ import java.util.Stack;
 
 public class Graph{
 
-	public static boolean DEBUG = false;
+	public static boolean DEBUG_ON = false;
+	public static boolean DEBUG_VERBOSE = false;
 
 	private static int idCounter = 0;
 	private HashMap<Integer, Node> idNodeTable;
@@ -20,6 +21,14 @@ public class Graph{
 	public Graph(){
 		variableNodes = new ArrayList<VariableNode>();
 		idNodeTable = new HashMap<Integer, Node>();
+	}
+
+	public void printIdNames(){
+		for(int j = 0; j < idCounter; j++){
+			Node n = idNodeTable.get(j);
+			String opName = n instanceof OpNode && ((OpNode)n).getOperation() != null ? ((OpNode)n).getOperation().getClass().getSimpleName() : "";
+			System.out.println("Node " + j + ": " + n.getClass().getSimpleName() + " " + opName);
+		}
 	}
 
 	public Tensor[] runGraph(int[] idRequests, HashMap<Integer, Tensor> placeHolderValues){
@@ -97,6 +106,16 @@ public class Graph{
 		return trainId;
 	}
 
+	public int trainMomentumMinimizer(double learningRate, double momentumRate, int target){
+		int trainId = getNextId();
+		TrainingNode trainingNode = new MomentumMinimizerNode(trainId, learningRate, momentumRate);
+		idNodeTable.put(trainId, trainingNode);
+
+		initTraining(target, trainingNode);
+
+		return trainId;
+	}
+
 	public void initTraining(int target, TrainingNode trainingNode){
 
 		
@@ -105,7 +124,7 @@ public class Graph{
 
 		// Find path from target to all variables
 
-		// Create constant -learningRate
+		// Create constant 1
 		Tensor tConst = new Tensor(targetNode.getDimensions(), new InitOp(){
 			public double execute(int[] dimensions, Index index){
 				return 1;
@@ -128,6 +147,14 @@ public class Graph{
 			ArrayList<Node> currentNodeInputs = currentNode.getInputs();
 			for(int j = 0; j < currentNodeInputs.size(); j++){
 				Node currentInput = currentNodeInputs.get(j);
+
+
+				if(currentInput instanceof PlaceHolderNode){
+					continue;
+				}
+
+
+
 				TensorOperation.TensorDerivativeInfo derivOpInfo = currentNode.getOperation().getDerivative(j);
 
 				ArrayList<Node> inputsToNewNode = new ArrayList<Node>();
@@ -146,7 +173,7 @@ public class Graph{
 
 				int newId = getNextId();
 				OpNode newNode = new OpNode(newId, newNodeDimensions, derivOpInfo.op);
-				idNodeTable.put(varId, newNode);
+				idNodeTable.put(newId, newNode);
 
 				for(Node ni: inputsToNewNode){
 					newNode.addInput(ni);

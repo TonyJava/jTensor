@@ -291,6 +291,47 @@ public class Operations{
 		}
 	}
 
+	// Input: T, T
+	// Output: T
+	public static class TensorAdd extends TensorOperation{
+		public void execute(Tensor output, Tensor... inputs){
+			inputs[0].copyTo(output, new CopyOp(){
+				public double execute(double input, Index index){
+					return input + inputs[1].getValue(index);
+				}
+			});
+		}
+	}
+
+	// Input: T, T
+	// Output: T
+	public static class TensorScale extends TensorOperation{
+		public void execute(Tensor output, Tensor... inputs){
+			inputs[0].copyTo(output, new CopyOp(){
+				public double execute(double input, Index index){
+					return input * inputs[1].getValue(index);
+				}
+			});
+		}
+
+		@Override
+		public TensorDerivativeInfo getDerivative(final int inputIndex){
+			TensorOperation derivativeOp = new TensorOperation(){
+				public void execute(Tensor output, Tensor... inputs){
+					Tensor originalInputs = new Tensor(inputs[inputIndex + 1]);
+					inputs[0].copyTo(output, new CopyOp(){
+						public double execute(double input, Index index){
+							double ogInput = originalInputs.getValue(index);
+							return input * ogInput;
+						}
+					});
+				}
+			};
+			int[] inputsNeeded = {1 - inputIndex};
+			return new TensorDerivativeInfo(derivativeOp, inputsNeeded);
+		}
+	}
+
 	// Input: [a, b]
 	// Output: [a]
 	public static class MatSumCols extends TensorOperation{
@@ -343,4 +384,146 @@ public class Operations{
 			return new TensorDerivativeInfo(derivativeOp, inputsNeeded);
 		}
 	}
+
+	// Input: [a]
+	// Output: [1]
+	public static class VecSum extends TensorOperation{
+
+		public void execute(Tensor output, Tensor... inputs){
+			double[] matrix1 = (double[])(inputs[0].getObject());
+			int[] outputMatrixDimensions = {1};
+
+			double[] outputMatrix = (double[])(output.getObject());
+
+			double sum = 0;
+			for(int x = 0; x < matrix1.length; x++){
+				sum += matrix1[x];
+			}
+			outputMatrix[0] = sum;
+		}
+
+		@Override
+		public int[] getOutputDimensions(int[][] inputDimensions){
+			int[] retVal = {1};
+			return retVal;
+		}
+
+		@Override
+		public TensorDerivativeInfo getDerivative(int inputIndex){
+			TensorOperation derivativeOp = new TensorOperation(){
+				public void execute(Tensor output, Tensor... inputs){
+					double[] gradientVector = (double[])(inputs[0].getObject());
+					double[] inputMatrix = (double[])(inputs[1].getObject());
+					int[] outputMatrixDimensions = {inputMatrix.length};
+
+					double[] outputMatrix = (double[])(output.getObject());
+
+					for(int x = 0; x < outputMatrixDimensions[0]; x++){
+						outputMatrix[x] = gradientVector[0];
+					}
+				}
+				@Override
+				public int[] getOutputDimensions(int[][] inputDimensions){
+					int[] retVal = {inputDimensions[1][0]};
+					return retVal;
+				}
+
+			};
+			int[] inputsNeeded = {0};
+			return new TensorDerivativeInfo(derivativeOp, inputsNeeded);
+		}
+	}
+
+	// inputs: [n, a], [n]
+	// outputs: [n]
+	public static class SparseCrossEntropySoftmax extends TensorOperation{
+
+		public void execute(Tensor output, Tensor... inputs){
+			double[][] logits = (double[][])(inputs[0].getObject());
+			double[] targets = (double[])(inputs[1].getObject());
+			int[] outputMatrixDimensions = {logits.length};
+
+			double[] outputMatrix = (double[])(output.getObject());
+
+
+			for(int x = 0; x < outputMatrixDimensions[0]; x++){
+				double max = logits[x][0];
+				for(int y = 1; y < logits[0].length; y++){
+					if(max < logits[x][y]){
+						max = logits[x][y];
+					}
+				}
+
+				double softmaxSum = 0;
+				for(int y = 0; y < logits[0].length; y++){
+					softmaxSum += Math.exp(logits[x][y] - max);
+					// System.out.println("y="+y+": "+logits[x][y]);
+				}
+				int correctIndex = (int)(targets[x]);
+				outputMatrix[x] = -1 * ((logits[x][correctIndex] - max) - Math.log(softmaxSum));
+
+				// System.out.println((logits[x][correctIndex] - max));
+				// System.out.println(Math.log(softmaxSum));
+				// System.out.println(outputMatrix[x]);
+			}
+		}
+		
+		@Override
+		public int[] getOutputDimensions(int[][] inputDimensions){
+			int[] retVal = {inputDimensions[0][0]};
+			return retVal;
+		}
+
+		@Override
+		public TensorDerivativeInfo getDerivative(int inputIndex){
+			if(inputIndex == 0){
+				TensorOperation derivativeOp = new TensorOperation(){
+					public void execute(Tensor output, Tensor... inputs){
+						double[] gradientVector = (double[])(inputs[0].getObject());
+						double[][] logits = (double[][])(inputs[1].getObject());
+						double[] targets = (double[])(inputs[2].getObject());
+
+						double[][] outputMatrix = (double[][])(output.getObject());
+
+						for(int x = 0; x < logits.length; x++){
+							double max = logits[x][0];
+							for(int y = 1; y < logits[x].length; y++){
+								if(max < logits[x][y]){
+									max = logits[x][y];
+								}
+							}
+
+							double softmaxSum = 0;
+							for(int y = 0; y < logits[x].length; y++){
+								softmaxSum += Math.exp(logits[x][y] - max);
+								// System.out.println(softmaxSum);
+							}
+
+							for(int y = 0; y < logits[x].length; y++){
+								// System.out.println("ogsm output["+y+"]: " + (Math.exp(logits[x][y] - max)/softmaxSum));
+								// System.out.println((y == (int)(targets[x]) ? 1.0 : 0.0));
+								outputMatrix[x][y] = gradientVector[x] * ((Math.exp(logits[x][y] - max)/softmaxSum) - (y == (int)(targets[x]) ? 1.0 : 0.0));
+							}
+						}
+					}
+					@Override
+					public int[] getOutputDimensions(int[][] inputDimensions){
+						int[] retVal = {inputDimensions[0][0], inputDimensions[1][1]};
+						return retVal;
+					}
+
+				};
+				int[] inputsNeeded = {0, 1};
+				return new TensorDerivativeInfo(derivativeOp, inputsNeeded);
+			}else{
+				return null;
+			}
+		}
+
+
+	}
+
+
 }
+
+

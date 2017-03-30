@@ -265,6 +265,39 @@ public class Tensor{
 			}
 		}
 
+		class AvgCountWrapper{
+			double sum;
+			int count;
+		}
+
+		public double getAverage(){
+			final AvgCountWrapper avgCount = new AvgCountWrapper();
+			avgCount.sum = 0;
+			avgCount.count = 0;
+			operate(new CopyOp(){
+				public double execute(double value, Index index){
+					avgCount.sum += value;
+					avgCount.count++;
+					return value;
+				}
+			});
+			return avgCount.sum/avgCount.count;
+		}
+
+		public double getAverageMagnitude(){
+			final AvgCountWrapper avgCount = new AvgCountWrapper();
+			avgCount.sum = 0;
+			avgCount.count = 0;
+			operate(new CopyOp(){
+				public double execute(double value, Index index){
+					avgCount.sum += Math.abs(value);
+					avgCount.count++;
+					return value;
+				}
+			});
+			return avgCount.sum/avgCount.count;
+		}
+
 		public Object getObject(){
 			return object;
 		}
@@ -279,9 +312,14 @@ public class Tensor{
 
 		public void printTensor(){
 			Index index = new Index(getOrder());
+			int size = 1;
+			for(int j = 0; j < getOrder(); j++){
+				size *= getDimensions()[j];
+			}
+			size = size > 30 ? 30 : size;
 			do{
 				System.out.print(getValue(index) + ", ");
-			}while(index.increment(this));
+			}while(index.increment(this) && (size--) > 0);
 			System.out.print("\n");
 		}
 }

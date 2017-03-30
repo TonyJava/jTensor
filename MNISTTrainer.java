@@ -6,38 +6,40 @@ import java.util.StringTokenizer;
 
 public class MNISTTrainer{
 	
-	final double INPUT_ON = .999;
-	final double INPUT_OFF = .001;
+	// final double INPUT_ON = .999;
+	// final double INPUT_OFF = .001;
 
 	public static void main(String[] args){
 		new MNISTTrainer();
 	}
 
-	int labelNum = 30000;
+	int labelNum = 50000;
 
 	public MNISTTrainer(){
 
 		TrainingData[] data = loadImages("./train-images.idx3-ubyte");
 		final int[] answers = loadLabels("./train-labels.idx1-ubyte");
 
-		int[] outputSize = {1, 10};
+		int[] outputSize = {1};
 		for(int j = 0; j < data.length; j++){
 			final int answer = answers[j];
 			data[j].output = new Tensor(outputSize, new InitOp(){
 				public double execute(int[] dimensions, Index index){
-					return answer == index.values[1] ? INPUT_ON : INPUT_OFF;
+					return answer;
+					// return index.values[1] == answer ? 1 : 0;
 				}
 			});
+			// if(j==0)data[j].output.printTensor();
 		}
 
 		
 		int[] inputDimensions = {1, 28 * 28};
-		int[] labelDimensions = {1, 10};
+		int[] labelDimensions = {1};
 
-		int[] hiddenNodes = {256};
+		int[] hiddenNodes = {64};
 
-		int[] vW1Size = {inputDimensions[1], labelDimensions[1]}; //hiddenNodes[0]};
-		int[] vW2Size = {hiddenNodes[0], labelDimensions[1]};
+		int[] vW1Size = {inputDimensions[1], 10};//hiddenNodes[0]};
+		int[] vW2Size = {hiddenNodes[0], 10};
 		int[] vB1Size = {vW1Size[1]};
 		int[] vB2Size = {vW2Size[1]};
 
@@ -49,6 +51,7 @@ public class MNISTTrainer{
 		int vWeights2 = graph.createVariable(vW2Size);
 		int vBias1 = graph.createVariable(vB1Size);
 		int vBias2 = graph.createVariable(vB2Size);
+		int[] variables = {vWeights1, vWeights2};
 
 		int tMult1 = graph.addOp(new Operations.MatMult(), pInput, vWeights1);
 		int tNet1 = graph.addOp(new Operations.MatAddVec(), tMult1, vBias1);
@@ -58,18 +61,37 @@ public class MNISTTrainer{
 		// int tNet2 = graph.addOp(new Operations.MatAddVec(), tMult2, vBias2);
 		// int y = graph.addOp(new Operations.TensorSigmoid(), tNet2);
 
-		int err = graph.addOp(new Operations.MatSub(), y, pLabels);
-		int err_sq = graph.addOp(new Operations.TensorSquare(), err);
-		int err_sum = graph.addOp(new Operations.MatSumCols(), err_sq);
+		// int err = graph.addOp(new Operations.MatSub(), y, pLabels);
+		// int err_sq = graph.addOp(new Operations.TensorSquare(), err);
+		// int xEntropyError = graph.addOp(new Operations.MatSumCols(), err_sq);
+		
+		int xEntropyError = graph.addOp(new Operations.SparseCrossEntropySoftmax(), y, pLabels);
 
-		int train = graph.trainGradientDescent(0.01, err_sq);
+		// int sumNode = -1;
+		// for(int varId: variables){
+		// 	int squares = graph.addOp(new Operations.TensorSquare(), varId);
+		// 	int sumCols = graph.addOp(new Operations.MatSumCols(), squares);
+		// 	int varSum = graph.addOp(new Operations.VecSum(), sumCols);
+		// 	if(sumNode == -1){
+		// 		sumNode = varSum;
+		// 	}else{
+		// 		sumNode = graph.addOp(new Operations.TensorAdd(), sumNode, varSum);
+		// 	}
+		// }
 
-		graph.initializeVariablesUniformRange(-.01, .01);
+		// int errorNode = graph.addOp(new Operations.TensorAdd(), sumNode, xEntropyError);
+
+		// int train = graph.trainMomentumMinimizer(0.1, 0.1, xEntropyError);
+		int train = graph.trainGradientDescent(0.0005, xEntropyError);
+
+		graph.printIdNames();
+
+		graph.initializeVariablesUniformRange(-0.01, 0.01);
 
 		int trainBatch = 1000;
-		int trainingExamples = data.length - 100;
+		int trainingExamples = data.length - 10000;
 
-		int[] idRequests = {y, err_sum, train};
+		int[] idRequests = {y, xEntropyError, train};
 
 
 		final double hitTarget = 95;
@@ -80,7 +102,7 @@ public class MNISTTrainer{
 			int trainStart = hitPercent < hitTarget ? 0 : trainingExamples;
 			int trainEnd = hitPercent < hitTarget ? trainingExamples : data.length;
 			int trainCount = trainEnd - trainStart;
-			int batchSize = hitPercent < hitTarget ? trainBatch : trainCount;
+			int batchSize = trainBatch;
 			for(int j = 0; j < batchSize; j++){
 				int randomSample = (int)(Math.random() * trainCount) + trainStart;
 				
@@ -114,7 +136,7 @@ public class MNISTTrainer{
 
 			boolean exit = hitPercent >= hitTarget;
 
-			double avgError = totalError/trainingExamples;
+			double avgError = totalError/batchSize;
 			hitPercent = (double)hits*100/batchSize;
 			System.out.println("Avg error (" + batchSize + "): " + avgError);
 			System.out.println("Hit % (" + batchSize + "): " + hitPercent);
@@ -170,7 +192,7 @@ public class MNISTTrainer{
 			// byte bb = (byte)-22 | 0;
 			// System.out.println(bb);
 
-			int labelCount = labelNum + 100;
+			int labelCount = labelNum;
 			// System.out.println("Labelcount: " + intRead);
 			for(int j = 0; j < labelCount; j++){
 				int b = br.read();
@@ -225,7 +247,7 @@ public class MNISTTrainer{
 				mask &= (255) << (3-j)*8;
 				intRead |= mask;
 			}
-			int labelCount = labelNum + 100;
+			int labelCount = labelNum;
 
 
 			buffer[0] = (byte)br.read(); // rows

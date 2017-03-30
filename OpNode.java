@@ -65,9 +65,11 @@ public class OpNode extends Node{
 			}
 			operation.execute(getTensor(), inputTensors);
 
-			if(Graph.DEBUG){
-				System.out.println("OpNode " + getId() + ": Output");
-				getTensor().printTensor();
+			if(Graph.DEBUG_ON){
+				System.out.println("OpNode " + getId() + ":\n\tAvg Value: " + getTensor().getAverage() + "\n\tAvg Mag: " + getTensor().getAverageMagnitude());
+				if(Graph.DEBUG_VERBOSE){
+					getTensor().printTensor();
+				}
 			}
 			
 			finished = true;

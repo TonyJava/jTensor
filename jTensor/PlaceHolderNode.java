@@ -1,3 +1,5 @@
+package jTensor;
+
 public class PlaceHolderNode extends Node{
 	private boolean initialized = false;
 

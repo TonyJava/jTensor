@@ -1,3 +1,5 @@
+package jTensor;
+
 public class GradientDescentNode extends TrainingNode{
 
 	private double learningRate;

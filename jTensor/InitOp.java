@@ -1,3 +1,5 @@
+package jTensor;
+
 // Wrapper for an init function
 public abstract class InitOp{
 	public abstract double execute(int[] dimensions, Index index);

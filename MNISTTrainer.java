@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.StringTokenizer;
 
+import jTensor.*;
+
 public class MNISTTrainer{
 	
 	// final double INPUT_ON = .999;

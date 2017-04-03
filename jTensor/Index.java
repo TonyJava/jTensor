@@ -1,3 +1,5 @@
+package jTensor;
+
 public class Index{
 		int[] values; // length of this is order
 

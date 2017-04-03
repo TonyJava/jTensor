@@ -1,3 +1,5 @@
+package jTensor;
+
 public class ConstantNode extends Node{
 
 	public ConstantNode(int id, Tensor tensor){

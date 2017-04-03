@@ -1,3 +1,5 @@
+package jTensor;
+
 import java.util.ArrayList;
 
 public class MomentumMinimizerNode extends TrainingNode{

@@ -1,3 +1,5 @@
+package jTensor;
+
 public class Operations{
 	
 	// Input: [a, b], [c, d]

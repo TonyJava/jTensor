@@ -1,3 +1,5 @@
+package jTensor;
+
 public class VariableNode extends Node{
 	
 	public VariableNode(int id, int[] dimensions){

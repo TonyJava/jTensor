@@ -1,3 +1,5 @@
+package jTensor;
+
 public class Tensor{
 		private Object object;
 		private int[] dimensions; // don't change (no setter)

@@ -1,3 +1,5 @@
+package jTensor;
+
 // Wrapper for a unary function
 public abstract class CopyOp{
 	public abstract double execute(double input, Index index);

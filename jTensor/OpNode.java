@@ -43,6 +43,7 @@ public class OpNode extends Node{
 				if(!inputs.get(j).runNode()){
 					return false;
 				}
+				// System.out.println("This id " + getId() + ", input id " + inputs.get(j).getId());
 				inputTensors[j] = inputs.get(j).getTensor();
 				inputDimensions[j] = inputTensors[j].getDimensions();
 				// System.out.println("OpNode " + getId() + ", input " + j + ": ");

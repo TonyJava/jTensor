@@ -25,6 +25,10 @@ public class Graph{
 		idNodeTable = new HashMap<Integer, Node>();
 	}
 
+	public int[] getNodeDimensions(int nodeId){
+		return idNodeTable.get(nodeId).getDimensions();
+	}
+
 	public void printIdNames(){
 		for(int j = 0; j < idCounter; j++){
 			Node n = idNodeTable.get(j);
@@ -50,6 +54,9 @@ public class Graph{
 							nodeStack.push((OpNode)child);
 						}else if(child instanceof PlaceHolderNode){
 							Tensor t = placeHolderValues.get(child.getId());
+							if(t == null){
+								System.out.println("Error: Missing PlaceholderId " + child.getId());
+							}
 							((PlaceHolderNode)child).setPlaceHolder(t);
 						}
 					}
@@ -118,9 +125,43 @@ public class Graph{
 		return trainId;
 	}
 
-	public void initTraining(int target, TrainingNode trainingNode){
+	// Returns int[][] = [ [trainId], [gradientNodeIds, ...], [gradientInputPlaceholderIds, ....]  ]
+	public int[][] trainRawGradients(int target){
+		int trainId = getNextId();
+		TrainingNode trainingNode = new GradientNode(trainId);
+		idNodeTable.put(trainId, trainingNode);
+		initTraining(target, trainingNode);
 
-		
+		ArrayList<VariableNode> updateTargets = trainingNode.getUpdateTargets();
+		ArrayList<Node> gradientInputs = trainingNode.getGradientInputs();
+
+		int[] trainNode = {trainId};
+		int[] placeHolders = new int[gradientInputs.size()];
+		int[] gradientHolders = new int[gradientInputs.size()];
+		for(int j = 0; j < gradientInputs.size(); j++){
+			gradientHolders[j] = gradientInputs.get(j).getId();
+			int[] placeHolderDimensions = gradientInputs.get(j).getDimensions();
+			if(gradientInputs.get(j) instanceof OpNode){
+				OpNode opNode = ((OpNode)gradientInputs.get(j));
+				ArrayList<Node> opNodeInputs = opNode.getInputs();
+				int[][] inputDimensions = new int[opNodeInputs.size()][];
+				for(int i = 0; i < opNodeInputs.size(); i++){
+					inputDimensions[i] = opNodeInputs.get(i).getDimensions();
+				}
+				placeHolderDimensions = opNode.getOperation().getOutputDimensions(inputDimensions);
+			}else{
+				System.out.println("BADDDD#3");
+			}
+			placeHolders[j] = createPlaceholder(placeHolderDimensions);
+			gradientInputs.set(j, idNodeTable.get(placeHolders[j]));
+		}
+
+		int[][] retArray = {trainNode, gradientHolders, placeHolders};
+
+		return retArray;
+	}
+
+	public void initTraining(int target, TrainingNode trainingNode){
 
 		OpNode targetNode = (OpNode)idNodeTable.get(target);
 

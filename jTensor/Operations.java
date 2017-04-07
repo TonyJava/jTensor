@@ -195,6 +195,77 @@ public class Operations{
 		}
 	}
 
+	// Input: [A, B]
+	// Output: [A, B]
+	public static class MatSoftmax extends TensorOperation{
+
+		public void execute(Tensor output, Tensor... inputs){
+			final double[][] matrix = ((double[][])inputs[0].getObject());
+			// Get max
+			final double[] max = new double[matrix.length];
+			for(int j = 0; j < matrix.length; j++){
+				max[j] = matrix[j][0];
+				for(int i = 1; i < matrix[j].length; i++){
+					if(max[j] < matrix[j][i]){
+						max[j] = matrix[j][i];
+					}
+				}
+			}
+			// Get sum
+			final double[] sum = new double[matrix.length];
+			for(int j = 0; j < matrix.length; j++){
+				for(int i = 0; i < matrix[j].length; i++){
+					sum[j] += Math.exp(matrix[j][i] - max[j]);
+				}
+			}
+			// Get softmax
+			output.operate(new CopyOp(){
+				public double execute(double input, Index index){
+					int j = index.getValues()[0];
+					int i = index.getValues()[1];
+					return Math.exp(matrix[j][i] - max[j])/sum[j];
+				}
+			});
+		}
+
+		@Override
+		public TensorDerivativeInfo getDerivative(int inputIndex){
+			TensorOperation derivativeOp = new TensorOperation(){
+				public void execute(Tensor output, Tensor... inputs){
+					final double[][] matrix = ((double[][])inputs[1].getObject());
+					// Get max
+					final double[] max = new double[matrix.length];
+					for(int j = 0; j < matrix.length; j++){
+						max[j] = matrix[j][0];
+						for(int i = 0; i < matrix[j].length; i++){
+							if(max[j] < matrix[j][i]){
+								max[j] = matrix[j][i];
+							}
+						}
+					}
+					// Get sum
+					final double[] sum = new double[matrix.length];
+					for(int j = 0; j < matrix.length; j++){
+						for(int i = 0; i < matrix[j].length; i++){
+							sum[j] += Math.exp(matrix[j][i] - max[j]);
+						}
+					}
+					// Get softmax
+					inputs[0].copyTo(output, new CopyOp(){
+						public double execute(double input, Index index){
+							int j = index.getValues()[0];
+							int i = index.getValues()[1];
+							double softmaxValue = Math.exp(matrix[j][i] - max[j])/sum[j];
+							return input * (softmaxValue * (1 - softmaxValue));
+						}
+					});
+				}
+			};
+			int[] inputsNeeded = {0};
+			return new TensorDerivativeInfo(derivativeOp, inputsNeeded);
+		}
+	}
+
 	// Input: T
 	// Output: T
 	public static class TensorSigmoid extends TensorOperation{
@@ -293,6 +364,38 @@ public class Operations{
 		}
 	}
 
+	// Input: T
+	// Output: T
+	public static class TensorLn extends TensorOperation{
+
+		public void execute(Tensor output, Tensor... inputs){
+			inputs[0].copyTo(output, new CopyOp(){
+				public double execute(double input, Index index){
+					return Math.log(input);
+				}
+			});
+			
+		}
+
+		@Override
+		public TensorDerivativeInfo getDerivative(int inputIndex){
+			TensorOperation derivativeOp = new TensorOperation(){
+				public void execute(Tensor output, Tensor... inputs){
+					Tensor originalInputs = new Tensor(inputs[1]);
+					inputs[0].copyTo(output, new CopyOp(){
+						public double execute(double input, Index index){
+							double ogInput = originalInputs.getValue(index);
+							return input * (1/ogInput);
+						}
+					});
+					
+				}
+			};
+			int[] inputsNeeded = {0};
+			return new TensorDerivativeInfo(derivativeOp, inputsNeeded);
+		}
+	}
+
 	// Input: T, T
 	// Output: T
 	public static class TensorAdd extends TensorOperation{
@@ -320,7 +423,7 @@ public class Operations{
 		public TensorDerivativeInfo getDerivative(final int inputIndex){
 			TensorOperation derivativeOp = new TensorOperation(){
 				public void execute(Tensor output, Tensor... inputs){
-					Tensor originalInputs = new Tensor(inputs[inputIndex + 1]);
+					Tensor originalInputs = new Tensor(inputs[1]);
 					inputs[0].copyTo(output, new CopyOp(){
 						public double execute(double input, Index index){
 							double ogInput = originalInputs.getValue(index);

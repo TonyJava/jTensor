@@ -1,7 +1,7 @@
 package jTensor;
 
 public class Index{
-		int[] values; // length of this is order
+		public int[] values; // length of this is order
 
 		public Index(int order){
 			values = new int[order];
@@ -16,6 +16,10 @@ public class Index{
 			for(int j = 0; j < values.length; j++){
 				values[j] = index.values[j];
 			}
+		}
+
+		public int[] getValues(){
+			return values;
 		}
 
 		// returns false if finished

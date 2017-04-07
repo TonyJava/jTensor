@@ -12,11 +12,12 @@ public class Rabbit extends Environment{
 	// o[1]: normalized distance to food
 
 	// Params
-	private final double hopDistance = 6.0;
-	private final double foodRadius = 4;
+	private final double startingHealth = 50;
+	private final double hopDistance = 5.0;
+	private final double foodRadius = 5;
 	private final double rabbitRadius = 8;
 	private final double turnSize = Math.PI/8;
-	private final double[] arenaSize = {0, 0, 100, 100};
+	private final double[] arenaSize = {0, 0, 50, 50};
 	private final double arenaDiagonal = Math.sqrt(Math.pow(arenaSize[2], 2) + Math.pow(arenaSize[3], 2));
 
 	// Actions:
@@ -27,7 +28,7 @@ public class Rabbit extends Environment{
 		public int action;
 	}
 
-	class RObservation extends Info{
+	public static class RabbitObservation extends Info{
 		double[] data;
 
 		@Override
@@ -36,28 +37,28 @@ public class Rabbit extends Environment{
 		}
 	}
 
-	class RState extends Info{
+	static class RabbitState extends Info{
 		double foodX, foodY;
 		double rabbitX, rabbitY, rabbitDir;
 		double rabbitHealth;
 	}
 
 	private void spawnFood(){
-		RState rs = (RState)state;
+		RabbitState rs = (RabbitState)state;
 		rs.foodX = (Math.random() * arenaSize[2]) + arenaSize[0];
 		rs.foodY = (Math.random() * arenaSize[3]) + arenaSize[1];
 	}
 
 	private void spawnRabbit(){
-		RState rs = (RState)state;
+		RabbitState rs = (RabbitState)state;
 		rs.rabbitX = (Math.random() * arenaSize[2]) + arenaSize[0];
-		rs.rabbitY = (Math.random() * arenaSize[2]) + arenaSize[0];
+		rs.rabbitY = (Math.random() * arenaSize[3]) + arenaSize[1];
 		rs.rabbitDir = Math.random() * Math.PI * 2;
-		rs.rabbitHealth = 100;
+		rs.rabbitHealth = startingHealth;
 	}
 
-	private RObservation getObservation(RState state){
-		RObservation ro = new RObservation();
+	private RabbitObservation getObservation(RabbitState state){
+		RabbitObservation ro = new RabbitObservation();
 		ro.data = new double[2];
 		ro.data[0] = Math.atan2(state.foodY - state.rabbitY, state.foodX - state.rabbitX);
 		ro.data[1] = Math.sqrt(Math.pow(state.foodX - state.rabbitX, 2) + Math.pow(state.foodY - state.rabbitY, 2)) / (arenaDiagonal / 3);
@@ -82,17 +83,17 @@ public class Rabbit extends Environment{
 
 	// Resets the environment, returns initial observation
 	public Info reset(){
-		state = new RState();
+		state = new RabbitState();
 		spawnRabbit();
 		spawnFood();
-		return getObservation((RState)state);
+		return getObservation((RabbitState)state);
 	}
 
 	// Implementation for next state
 	protected ROF nextState(Info state, Info action){
 		ROF rof = new ROF();
 		rof.reward = 1.0;
-		RState rs = (RState)state;
+		RabbitState rs = (RabbitState)state;
 		int choice = ((Action)action).action;
 		rs.rabbitHealth -= 1;
 		if(rs.rabbitHealth <= 0){
@@ -140,7 +141,7 @@ public class Rabbit extends Environment{
 			return true;
 		}
 
-		RState rs = (RState)state;
+		RabbitState rs = (RabbitState)state;
 
 		g.setColor(Color.WHITE);
 		g.fillRect((int)(arenaSize[0]), (int)(arenaSize[1]), (int)(arenaSize[2]), (int)(arenaSize[3]));

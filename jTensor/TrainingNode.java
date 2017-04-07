@@ -17,6 +17,14 @@ public abstract class TrainingNode extends OpNode{
 	public void addInputUpdateTarget(Node inputNode, VariableNode updateTarget){
 		updateTargets.add(updateTarget);
 		gradientInputs.add(inputNode);
-	}	
+	}
+
+	public ArrayList<VariableNode> getUpdateTargets(){
+		return updateTargets;
+	}
+
+	public ArrayList<Node> getGradientInputs(){
+		return gradientInputs;
+	}
 	
 }

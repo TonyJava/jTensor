@@ -14,7 +14,7 @@ public class PolicyRabbit{
 
 		// Params
 
-		final int episodesPerBatch = 1;
+		final int episodesPerBatch = 100;
 		final double performanceGoal = 1000;
 		final double rewardDiscount = .99;
 		final double learningRate = .1;
@@ -23,13 +23,14 @@ public class PolicyRabbit{
 		// Create the policy network
 
 		int trainingExamplesPerRun = 1;
+		int outputSize = 3;
 		int[] inputDimensions = {trainingExamplesPerRun, 2};
 		// int[] labelDimensions = {trainingExamplesPerRun}; // posision of 1 in one-hot vector for 1 training example
 		int[] labelDimensions = {trainingExamplesPerRun, 3};
 		int[] hiddenNodes = {16};
 		int[] vW1Size = {inputDimensions[1], hiddenNodes[0]};
 		int[] vB1Size = {vW1Size[1]};
-		int[] vW2Size = {vW1Size[1], labelDimensions[0]};
+		int[] vW2Size = {vW1Size[1], outputSize};
 		int[] vB2Size = {vW2Size[1]};
 
 		Graph graph = new Graph();
@@ -44,14 +45,14 @@ public class PolicyRabbit{
 		int tOut1 = graph.addOp(new Operations.TensorReLU(), tNet1);
 		int tMult2 = graph.addOp(new Operations.MatMult(), tOut1, vWeights2);
 		int tNet2 = graph.addOp(new Operations.MatAddVec(), tMult2, vBias2);
-		int soft = graph.addOp(new Operations.TensorSigmoid(), tNet2);
-		int y = graph.addOp(new Operations.MatSoftmax(), soft);
+		int sigmoid = graph.addOp(new Operations.TensorSigmoid(), tNet2);
+		int y = graph.addOp(new Operations.MatSoftmax(), sigmoid);
 
 		// Loss = ln(y * sm)
-		int probMult = graph.addOp(new Operations.TensorScale(), y, pLabels);
-		int loss = graph.addOp(new Operations.TensorLn(), probMult);
+		// int probMult = graph.addOp(new Operations.TensorScale(), y, pLabels);
+		int loss = graph.addOp(new Operations.TensorLn(), y);
 
-		// int xEntropyError = graph.addOp(new Operations.SparseCrossEntropySoftmax(), y, pLabels);
+		// int loss = graph.addOp(new Operations.SparseCrossEntropySoftmax(), y, pLabels);
 		int[][] gradientInfo = graph.trainRawGradients(loss);
 
 		graph.initializeVariablesUniformRange(-0.1, 0.1);
@@ -79,7 +80,7 @@ public class PolicyRabbit{
 			ArrayList<Double> discountedRewards = new ArrayList<Double>();
 
 			// Perform policy rollouts
-			double e_greedy = 1.0/(epoch + 1);
+			double e_greedy = 2.0/(epoch/1000 + 1);
 			System.out.println("Starting rollouts, e_greedy: " + e_greedy);
 			performance = 0;
 			for(int ep = 0; ep < episodesPerBatch; ep++){
@@ -131,7 +132,7 @@ public class PolicyRabbit{
 			normalize(discountedRewards);
 
 			// Calculate scaled gradients
-			System.out.println("Calculating Gradients");
+			// System.out.println("Calculating Gradients");
 
 
 			Tensor[] gradients = new Tensor[gradientInfo[1].length];
@@ -155,13 +156,13 @@ public class PolicyRabbit{
 				final int action = actions.get(j);
 				pLabelTensor.operate(new CopyOp(){
 					public double execute(double value, Index index){
-						return action == index.getValues()[1] ? 1 : 0;
+						return action; // == index.getValues()[1] ? 1 : 0;
 					}
 				});
 				dict.put(pLabels, pLabelTensor);
 				final Tensor[] graphOutput = graph.runGraph(gradientRequests, dict);
 				double advantage = discountedRewards.get(j);
-				final double modifier = -1 * learningRate * advantage;
+				final double modifier = learningRate * advantage;
 				for(int i = 0; i < graphOutput.length; i++){
 					final Tensor graphOutI = graphOutput[i];
 					gradients[i].operate(new CopyOp(){
@@ -184,12 +185,12 @@ public class PolicyRabbit{
 			}
 
 			// Apply updates
-			System.out.println("Applying gradients");
+			// System.out.println("Applying gradients");
 
 			HashMap<Integer, Tensor> dict = new HashMap<Integer, Tensor>();
 
 			for(int j = 0; j < gradientInfo[2].length; j++){
-				System.out.println("Gradient " + j + ": Avg=" + gradients[j].getAverage() + ", Mag=" + gradients[j].getAverageMagnitude());
+				// System.out.println("Gradient " + j + ": Avg=" + gradients[j].getAverage() + ", Mag=" + gradients[j].getAverageMagnitude());
 				dict.put(gradientInfo[2][j], gradients[j]);
 			}
 

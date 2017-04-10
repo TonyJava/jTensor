@@ -237,7 +237,7 @@ public class Operations{
 					final double[] max = new double[matrix.length];
 					for(int j = 0; j < matrix.length; j++){
 						max[j] = matrix[j][0];
-						for(int i = 0; i < matrix[j].length; i++){
+						for(int i = 1; i < matrix[j].length; i++){
 							if(max[j] < matrix[j][i]){
 								max[j] = matrix[j][i];
 							}

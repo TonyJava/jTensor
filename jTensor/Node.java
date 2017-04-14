@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 public abstract class Node{
 
-	private Tensor tensor = null;
+	protected Tensor tensor = null;
 	private int[] dimensions;
 	private int id;
 

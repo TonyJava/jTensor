@@ -12,12 +12,12 @@ public class Rabbit extends Environment{
 	// o[1]: normalized distance to food
 
 	// Params
-	private final double startingHealth = 50;
+	private final double startingHealth = 100;
 	private final double hopDistance = 5.0;
 	private final double foodRadius = 5;
-	private final double rabbitRadius = 8;
-	private final double turnSize = Math.PI/8;
-	private final double[] arenaSize = {0, 0, 50, 50};
+	private final double rabbitRadius = 5;
+	private final double turnSize = Math.PI/16;
+	private final double[] arenaSize = {0, 0, 70, 70};
 	private final double arenaDiagonal = Math.sqrt(Math.pow(arenaSize[2], 2) + Math.pow(arenaSize[3], 2));
 
 	// Actions:
@@ -45,23 +45,30 @@ public class Rabbit extends Environment{
 
 	private void spawnFood(){
 		RabbitState rs = (RabbitState)state;
+		// rs.foodX = ((rs.foodX) * 73) % arenaSize[2];
 		rs.foodX = (Math.random() * arenaSize[2]) + arenaSize[0];
+		// rs.foodY = ((rs.foodY) * 73) % arenaSize[3];
 		rs.foodY = (Math.random() * arenaSize[3]) + arenaSize[1];
 	}
 
 	private void spawnRabbit(){
 		RabbitState rs = (RabbitState)state;
+		// rs.rabbitX = ((rs.rabbitX) * 73) % arenaSize[2];
 		rs.rabbitX = (Math.random() * arenaSize[2]) + arenaSize[0];
+		// rs.rabbitY = ((rs.rabbitY) * 73) % arenaSize[3];
 		rs.rabbitY = (Math.random() * arenaSize[3]) + arenaSize[1];
+		// rs.rabbitDir = ((rs.rabbitDir) * 73) % (2*Math.PI);
 		rs.rabbitDir = Math.random() * Math.PI * 2;
 		rs.rabbitHealth = startingHealth;
 	}
 
 	private RabbitObservation getObservation(RabbitState state){
 		RabbitObservation ro = new RabbitObservation();
-		ro.data = new double[2];
+		ro.data = new double[4];
 		ro.data[0] = Math.atan2(state.foodY - state.rabbitY, state.foodX - state.rabbitX);
-		ro.data[1] = Math.sqrt(Math.pow(state.foodX - state.rabbitX, 2) + Math.pow(state.foodY - state.rabbitY, 2)) / (arenaDiagonal / 3);
+		ro.data[1] = Math.sqrt(Math.pow(state.foodX - state.rabbitX, 2) + Math.pow(state.foodY - state.rabbitY, 2)) / (arenaDiagonal);
+		ro.data[2] = (arenaSize[2]/2 - state.rabbitX) / (arenaDiagonal);
+		ro.data[3] = (arenaSize[3]/2 - state.rabbitY) / (arenaDiagonal);
 		return ro;
 	}
 
@@ -69,7 +76,7 @@ public class Rabbit extends Environment{
 	public Space getObservationSpace(){
 		Space space = new Space();
 		space.type = Space.Type.CONTINUOUS;
-		space.dimensions = new int[]{2};
+		space.dimensions = new int[]{4};
 		return space;
 	}
 
@@ -83,7 +90,13 @@ public class Rabbit extends Environment{
 
 	// Resets the environment, returns initial observation
 	public Info reset(){
-		state = new RabbitState();
+		RabbitState rs = new RabbitState();
+		state = rs;
+		rs.foodX = 30;
+		rs.foodY = 60;
+		rs.rabbitX = 90;
+		rs.rabbitY = 120;
+		rs.rabbitDir = 0;
 		spawnRabbit();
 		spawnFood();
 		return getObservation((RabbitState)state);
@@ -92,6 +105,7 @@ public class Rabbit extends Environment{
 	// Implementation for next state
 	protected ROF nextState(Info state, Info action){
 		ROF rof = new ROF();
+		// rof.reward = 0.0;
 		rof.reward = 1.0;
 		RabbitState rs = (RabbitState)state;
 		int choice = ((Action)action).action;
@@ -104,14 +118,19 @@ public class Rabbit extends Environment{
 			rof.nextState = rs;
 
 			double distance = Math.sqrt(Math.pow(rs.foodX - rs.rabbitX, 2) + Math.pow(rs.foodY - rs.rabbitY, 2));
+			// rof.reward = 1/distance;
+
 			if(distance <= foodRadius + rabbitRadius){
 				rs.rabbitHealth += 100;
 				spawnFood();
+				// rof.reward = 1.0;
+
 			}
 
 			if(choice < 2){ // Turn
 				double modifier = choice == 0 ? 1 : -1;
 				rs.rabbitDir += modifier * turnSize;
+				rs.rabbitDir = rs.rabbitDir % (2 * Math.PI);
 			}else{ // Move forward
 				rs.rabbitX += hopDistance * Math.cos(rs.rabbitDir);
 				rs.rabbitY += hopDistance * Math.sin(rs.rabbitDir);

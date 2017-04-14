@@ -37,9 +37,16 @@ public class Graph{
 		}
 	}
 
+	public void setPlaceHolderInput(int placeHolderId, int inputId){
+		PlaceHolderNode placeHolder = (PlaceHolderNode)idNodeTable.get(placeHolderId);
+		Node input = (Node)idNodeTable.get(inputId);
+		placeHolder.setInput(input);
+	}
+
 	public Tensor[] runGraph(int[] idRequests, HashMap<Integer, Tensor> placeHolderValues){
 
 		HashSet<OpNode> neededNodes = new HashSet<OpNode>();
+		ArrayList<PlaceHolderNode> placeHoldersWithInput = new ArrayList<PlaceHolderNode>();
 
 		// find and fill placeholders
 		for(int id: idRequests){
@@ -54,10 +61,18 @@ public class Graph{
 							nodeStack.push((OpNode)child);
 						}else if(child instanceof PlaceHolderNode){
 							Tensor t = placeHolderValues.get(child.getId());
-							if(t == null){
-								System.out.println("Error: Missing PlaceholderId " + child.getId());
+							PlaceHolderNode placeHolder = ((PlaceHolderNode)child);
+							if(!placeHolder.isInputSet()){
+								if(t == null){
+									System.out.println("Error: Missing PlaceholderId " + child.getId());
+								}
+								placeHolder.setPlaceHolder(t);
+							}else{
+								placeHoldersWithInput.add(placeHolder);
+								if(t != null){
+									placeHolder.setPlaceHolder(t);
+								}
 							}
-							((PlaceHolderNode)child).setPlaceHolder(t);
 						}
 					}
 					neededNodes.add((OpNode)currentNode);
@@ -82,6 +97,10 @@ public class Graph{
 				System.out.println("Error run graph id: " + id);
 			}
 			// }
+		}
+
+		for(PlaceHolderNode placeHolder: placeHoldersWithInput){
+			placeHolder.copyFromInput();
 		}
 
 		// return tensors

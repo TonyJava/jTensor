@@ -43,6 +43,24 @@ public class Graph{
 		placeHolder.setInput(input);
 	}
 
+	private class IntegerWrapper{
+		int x;
+		public IntegerWrapper(int x){this.x = x;}
+	}
+
+	public int getParameterCount(){
+		final IntegerWrapper count = new IntegerWrapper(0);
+		for(VariableNode v: variableNodes){
+			v.getTensor().operate(new CopyOp(){
+				public double execute(double value, Index index){
+					count.x += 1;
+					return value;
+				}
+			});
+		}
+		return count.x;
+	}
+
 	public Tensor[] runGraph(int[] idRequests, HashMap<Integer, Tensor> placeHolderValues){
 
 		HashSet<OpNode> neededNodes = new HashSet<OpNode>();
@@ -117,6 +135,7 @@ public class Graph{
 		for(VariableNode node: variableNodes){
 			node.initializeUniformRange(min, max);
 		}
+		System.out.println("Total parameters: " + getParameterCount());
 	}
 
 	public void setVariable(int id, Tensor tensor){
@@ -160,6 +179,8 @@ public class Graph{
 		for(int j = 0; j < gradientInputs.size(); j++){
 			gradientHolders[j] = gradientInputs.get(j).getId();
 			int[] placeHolderDimensions = gradientInputs.get(j).getDimensions();
+
+			// Is this needed?
 			if(gradientInputs.get(j) instanceof OpNode){
 				OpNode opNode = ((OpNode)gradientInputs.get(j));
 				ArrayList<Node> opNodeInputs = opNode.getInputs();
@@ -171,6 +192,7 @@ public class Graph{
 			}else{
 				System.out.println("BADDDD#3");
 			}
+
 			placeHolders[j] = createPlaceholder(placeHolderDimensions);
 			gradientInputs.set(j, idNodeTable.get(placeHolders[j]));
 		}

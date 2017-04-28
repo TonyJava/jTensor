@@ -4,20 +4,20 @@ import jREC.*;
 import java.util.ArrayList;
 import java.util.*;
 
-public class EvolutionRabbit{
+public class EvolutionCartPole{
 	
 	public static void main(String[] args){
-		new EvolutionRabbit();
+		new EvolutionCartPole();
 	}
 
 	// Params
-	final double performanceGoal = 1000;
+	final double performanceGoal = 100;
 
 	// Policy network params
 	final int trainingExamplesPerRun = 1;
-	final int outputSize = 3;
+	final int outputSize = 2;
 	final int[] inputDimensions = {trainingExamplesPerRun, 4};
-	final int[] hiddenNodes = {4};
+	final int[] hiddenNodes = {16};
 	final int[] hiddenNodesDimensions = {trainingExamplesPerRun, hiddenNodes[0]};
 	final int[] vW1Size = {inputDimensions[1], hiddenNodes[0]};
 	final int[] vB1Size = {vW1Size[1]};
@@ -27,14 +27,14 @@ public class EvolutionRabbit{
 
 	// Evolution params
 	final double initMean = 0;
-	final double initStdDev = 4.0;
+	final double initStdDev = .1;
 	final double mutateMean = 0;
-	final double mutateStdDev = 1.0;
-	final double mutateChance = .1;
+	final double mutateStdDev = 0.1;
+	final double mutateChance = .05;
 	final int rollouts = 10;
 	final int initPopSize = 10000;
 	final int reproductionFactor = 4;
-	final int randomOffspring = 500;
+	final int randomOffspring = 50;
 
 	// Add all variable sizes to this for candidate class to use to calculate total params
 	// final int[][] varSizes = {vW1Size, vWHSize, vB1Size, vW2Size, vB2Size};
@@ -102,7 +102,7 @@ public class EvolutionRabbit{
 
 	}
 
-	public EvolutionRabbit(){
+	public EvolutionCartPole(){
 
 		Graph graph = new Graph();
 		int pInput = graph.createPlaceholder(inputDimensions);
@@ -112,7 +112,7 @@ public class EvolutionRabbit{
 		int vBias2 = graph.createPlaceholder(vB2Size);
 		int tMult1 = graph.addOp(new Operations.MatMult(), pInput, vWeights1);
 		int tNet1 = graph.addOp(new Operations.MatAddVec(), tMult1, vBias1);
-		int tOut1 = graph.addOp(new Operations.TensorSigmoid(), tNet1);
+		int tOut1 = graph.addOp(new Operations.TensorReLU(), tNet1);
 		int tMult2 = graph.addOp(new Operations.MatMult(), tOut1, vWeights2);
 		int tNet2 = graph.addOp(new Operations.MatAddVec(), tMult2, vBias2);
 
@@ -144,7 +144,7 @@ public class EvolutionRabbit{
 
 		// Set up for policy gradient
 
-		Rabbit env = new Rabbit();
+		CartPole env = new CartPole();
 
 		double performance = 0;
 		while(true){
@@ -174,7 +174,7 @@ public class EvolutionRabbit{
 
 					// Test individual
 					boolean finished = false;
-					Rabbit.RabbitObservation obs = (Rabbit.RabbitObservation)env.reset();
+					CartPole.CartPoleObservation obs = (CartPole.CartPoleObservation)env.reset();
 					// boolean firstStep = true;
 
 					while(!finished){
@@ -214,7 +214,7 @@ public class EvolutionRabbit{
 						// System.out.println(rawOutput[0][action]);
 
 						// Take action, get reward
-						Rabbit.Action a = new Rabbit.Action();
+						CartPole.Action a = new CartPole.Action();
 						a.action = action;
 						ROF rof = env.step(a);
 						finished = rof.finished;

@@ -2,34 +2,35 @@ import jTensor.*;
 import jREC.*;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 
-public class PolicyRabbit{
+public class PolicyCartPole{
 	
 	public static void main(String[] args){
-		new PolicyRabbit();
+		new PolicyCartPole();
 	}
 
-	public PolicyRabbit(){
+	public PolicyCartPole(){
 
 		// Params
 
-		final int episodesPerBatch = 10000;
-		final double performanceGoal = 1000;
+		final int episodesPerBatch = 50000;
+		final double performanceGoal = 50;
 		final double rewardDiscount = .99;
-		final double learningRate = .1;
-		final int e_greedy_decay = 25; // reciprocal of decay
+		final double learningRate = .1;//.001;
+		final int e_greedy_decay = 50; // reciprocal of decay
 
 
 		// Create the policy network
 
 		int trainingExamplesPerRun = 1;
-		int outputSize = 3;
+		int outputSize = 2;
 		int[] inputDimensions = {trainingExamplesPerRun, 4};
-		// int[] labelDimensions = {trainingExamplesPerRun}; // posision of 1 in one-hot vector for 1 training example
-		int[] labelDimensions = {trainingExamplesPerRun}; // index of the one in the one hot encoded action
+		int[] labelDimensions = {trainingExamplesPerRun}; // posision of 1 in one-hot vector for 1 training example
+		// int[] labelDimensions = {trainingExamplesPerRun, outputSize}; // index of the one in the one hot encoded action
 		int[] rewardDimensions = {trainingExamplesPerRun}; // The reward for the action
-		int[] hiddenNodes = {16};
+		int[] hiddenNodes = {3};
 		int[] vW1Size = {inputDimensions[1], hiddenNodes[0]};
 		int[] vB1Size = {vW1Size[1]};
 		int[] vW2Size = {vW1Size[1], outputSize};
@@ -48,48 +49,69 @@ public class PolicyRabbit{
 		int tOut1 = graph.addOp(new Operations.TensorReLU(), tNet1);
 		int tMult2 = graph.addOp(new Operations.MatMult(), tOut1, vWeights2);
 		int tNet2 = graph.addOp(new Operations.MatAddVec(), tMult2, vBias2);
-		int y = graph.addOp(new Operations.MatSoftmax(), tNet2);
-
+		int actionProbs = graph.addOp(new Operations.MatSoftmax(), tNet2);
+		// int logProbs = graph.addOp(new Operations.TensorLn(), actionProbs);
+		// int selectedActionProb = graph.addOp(new Operations.TensorScale(), logProbs, pLabels);
 		int xEntropy = graph.addOp(new Operations.SparseCrossEntropySoftmax(), tNet2, pLabels);
-		int loss = graph.addOp(new Operations.TensorScale(), xEntropy, pRewards);
+		int reinforceGrad = graph.addOp(new Operations.TensorScale(), xEntropy, pRewards);
+		// int loss = graph.addOp(new Operations.TensorScale(), xEntropy, pRewards);
 
+		int[][] train = graph.trainRawGradients(reinforceGrad);
+		// int train = graph.trainGradientDescent(learningRate, loss);
 
-		int[] runRequests = {y};
-		int[] trainRequests = {loss};
+		int[] gradientNodeIds = train[1];
+		int[] gradientPlaceHolderIds = train[2];
 
-		graph.initializeVariablesUniformRange(-2, 2);
+		int[] runRequests = {actionProbs};
+		// int[] trainRequests = {train};
+		int[] trainRequests = {train[0][0]};
+
+		graph.initializeVariablesUniformRange(-0.1, 0.1);
 
 		// Set up for policy gradient
 
-		Rabbit env = new Rabbit();
+		CartPole env = new CartPole();
 		int epoch = 0;
 
 		double performance = 0;
-		while(performance < performanceGoal){
+		double runningPerformance = 0;
+		while(true){
+
+			final boolean renderScreen = performance >= performanceGoal;
 
 			epoch += 1;
 
-			ArrayList<Rabbit.RabbitObservation> observations = new ArrayList<Rabbit.RabbitObservation>();
+			ArrayList<CartPole.CartPoleObservation> observations = new ArrayList<CartPole.CartPoleObservation>();
 			ArrayList<Integer> actions = new ArrayList<Integer>();
 			ArrayList<Double> discountedRewards = new ArrayList<Double>();
 
 			// Perform policy rollouts
-			double e_greedy = 2.0/(epoch/e_greedy_decay + 1.0);
-			System.out.println("Starting rollouts, e_greedy: " + e_greedy);
+			double e_greedy = 1.0/(epoch/e_greedy_decay + 1.0);
+			// double e_greedy = 0;
+			// if(epoch < 2){
+			// 	e_greedy = 1;
+			// }
+			// System.out.println("Starting rollouts, e_greedy: " + e_greedy);
 			performance = 0;
+			int[] actionsSelected = new int[outputSize];
 			for(int ep = 0; ep < episodesPerBatch; ep++){
 				ArrayList<Double> rewards = new ArrayList<Double>();
 				boolean finished = false;
 				
-				Rabbit.RabbitObservation obs = (Rabbit.RabbitObservation)env.reset();
+				CartPole.CartPoleObservation obs = (CartPole.CartPoleObservation)env.reset();
 				double episodeReward = 0;
 				while(!finished){
+
+					if(renderScreen){
+						env.render();
+						try{Thread.sleep(500);}catch(Exception e){}
+					}
 
 					// Get action
 					int action = 0;
 					if(Math.random() < e_greedy){
 						// Take random action
-						action = (int)(Math.random() * 3);
+						action = (int)(Math.random() * 2);
 					}else{
 						// Calculate action
 						final double[] rawInput = obs.getDouble1();
@@ -103,14 +125,15 @@ public class PolicyRabbit{
 						double[][] rawOutput = (double[][])(graphOutput[0].getObject());
 						// action = argmax(rawOutput[0]);
 						double randChoice = Math.random();
-						action = -1;
-						for(; randChoice > 0;){
+						for(action = -1; randChoice > 0;){
 							randChoice -= rawOutput[0][++action];
 						}
 					}
 
+					actionsSelected[action]++;
+
 					// Take action, get reward
-					Rabbit.Action a = new Rabbit.Action();
+					CartPole.Action a = new CartPole.Action();
 					a.action = action;
 					ROF rof = env.step(a);
 					finished = rof.finished;
@@ -133,12 +156,21 @@ public class PolicyRabbit{
 
 				for(double r: rewards){
 					discountedRewards.add(r);
+					// discountedRewards.add(episodeReward);
 				}
-				
 			}
 
+			System.out.println(actionsSelected[0] - actionsSelected[1]);
+
 			performance /= episodesPerBatch;
-			System.out.println("Steps: " + observations.size() + ", Performance: " + performance);
+			if(epoch == 1){
+				runningPerformance = performance;
+			}else if(epoch < 10){
+				runningPerformance = runningPerformance * 0.9 + performance * 0.1;
+			}else{
+				runningPerformance = runningPerformance * 0.95 + performance * 0.05;
+			}
+			System.out.println("Steps: " + observations.size() + ", e_greedy: " + (int)(e_greedy*100) + ", Performance: " + performance + ", Average Performance: " + runningPerformance);
 
 			normalize(discountedRewards);
 
@@ -146,7 +178,14 @@ public class PolicyRabbit{
 			Tensor pLabelTensor = new Tensor(labelDimensions);
 			Tensor pRewardTensor = new Tensor(rewardDimensions);
 
+			// Tensors to accumulate gradients
+			Tensor[] gradientTensors = new Tensor[gradientNodeIds.length];
+			for(int j = 0; j < gradientTensors.length; j++){
+				gradientTensors[j] = new Tensor(graph.getNodeDimensions(gradientNodeIds[j]));
+			}
+
 			// Iterate through all saved experiences
+			// Accumulate gradients
 			for(int j = 0; j < observations.size(); j++){
 				HashMap<Integer, Tensor> dict = new HashMap<Integer, Tensor>();
 
@@ -161,7 +200,7 @@ public class PolicyRabbit{
 				final int action = actions.get(j);
 				pLabelTensor.operate(new CopyOp(){
 					public double execute(double value, Index index){
-						return action; // == index.getValues()[1] ? 1 : 0;
+						return action;// == index.getValues()[1] ? 1 : 0;
 					}
 				});
 				dict.put(pLabels, pLabelTensor);
@@ -174,8 +213,36 @@ public class PolicyRabbit{
 				});
 				dict.put(pRewards, pRewardTensor);
 
-				graph.runGraph(trainRequests, dict);
+				final Tensor[] graphOutput = graph.runGraph(gradientNodeIds, dict);
+				for(int i = 0; i < gradientTensors.length; i++){
+					final Tensor graphTensor = graphOutput[i];
+					gradientTensors[i].operate(new CopyOp(){
+						public double execute(double value, Index index){
+							return value + graphTensor.getValue(index);
+						}
+					});
+				}
 			}
+
+			final double modifier = learningRate / observations.size();
+			for(int i = 0; i < gradientTensors.length; i++){
+				gradientTensors[i].operate(new CopyOp(){
+					public double execute(double value, Index index){
+						return value * modifier;
+					}
+				});
+				// System.out.println(i + ": " + gradientTensors[i].getAverage() + ", " + gradientTensors[i].getAverageMagnitude());
+			}
+
+
+			// Apply graidents
+			HashMap<Integer, Tensor> dict = new HashMap<Integer, Tensor>();
+			for(int j = 0; j < gradientPlaceHolderIds.length; j++){
+				dict.put(gradientPlaceHolderIds[j], gradientTensors[j]);
+			}
+			graph.runGraph(trainRequests, dict);
+
+
 		}
 	}
 
@@ -191,11 +258,18 @@ public class PolicyRabbit{
 		}
 		double stddev = Math.sqrt(sum/nums.size());
 		if(stddev == 0){
-			stddev = .0001;
+			stddev = 1;
 		}
 		for(int j = 0; j < nums.size(); j++){
 			nums.set(j, (nums.get(j) - mean) / stddev);
 		}
+		// ArrayList<Double> numsCopy = (ArrayList<Double>)(nums.clone());
+		// Collections.sort(numsCopy);
+		// System.out.println(numsCopy.get(0) + " : " +  numsCopy.get(numsCopy.size() - 1));
+		// int c = 0;
+		// for(Double d: numsCopy){
+		// 	System.out.println(c++ + ": " + d);
+		// }
 	}
 
 	public int argmax(double[] nums){

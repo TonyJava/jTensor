@@ -13,11 +13,11 @@ public class Rabbit extends Environment{
 
 	// Params
 	private final double startingHealth = 100;
-	private final double hopDistance = 5.0;
-	private final double foodRadius = 5;
+	private final double hopDistance = 3.0;
+	private final double foodRadius = 10;
 	private final double rabbitRadius = 5;
 	private final double turnSize = Math.PI/16;
-	private final double[] arenaSize = {0, 0, 70, 70};
+	private final double[] arenaSize = {0, 0, 1000, 1000};
 	private final double arenaDiagonal = Math.sqrt(Math.pow(arenaSize[2], 2) + Math.pow(arenaSize[3], 2));
 
 	// Actions:

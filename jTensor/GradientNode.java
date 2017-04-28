@@ -18,6 +18,7 @@ public class GradientNode extends TrainingNode{
 					return value + gradient;
 				}
 			});
+			System.out.println(j + ": " + tGradients.getAverage() + ", " + tGradients.getAverageMagnitude());	
 		}
 		return true;
 	}

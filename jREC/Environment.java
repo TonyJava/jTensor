@@ -25,8 +25,13 @@ public abstract class Environment{
 		ROF rof = nextState(state, action);
 		state = rof.nextState;
 		rof.nextState = null;
+		if(rof.finished){
+			sketchVar = 0;
+		}
 		return rof;
 	}
+
+	static int sketchVar = 0;
 
 	// Renders the environment
 	public void render(){
@@ -37,6 +42,8 @@ public abstract class Environment{
 					@Override
 					public void paintComponent(Graphics g){
 						draw(g, state);
+						g.drawString(""+sketchVar++, 50, 50);
+						g.drawString(""+System.currentTimeMillis(), 100, 50);
 					}
 				});
 				jFrame.setSize(600, 600);

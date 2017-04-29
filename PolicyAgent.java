@@ -5,32 +5,32 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 
-public class PolicyCartPole{
+public class PolicyAgent{
 	
 	public static void main(String[] args){
-		new PolicyCartPole();
+		new PolicyAgent(new Rabbit(), 5, .01);
 	}
 
-	public PolicyCartPole(){
+	public PolicyAgent(Environment env, int hiddenNodesCount, double learningRate){
 
 		// Params
 
-		final int episodesPerBatch = 10;
+		final int episodesPerBatch = 100;
 		final double performanceGoal = 1000;
 		final double rewardDiscount = .99;
-		final double learningRate = .01;
 		final int e_greedy_decay = 50; // reciprocal of decay
 
 
 		// Create the policy network
 
 		int trainingExamplesPerRun = 1;
-		int outputSize = 2;
-		int[] inputDimensions = {trainingExamplesPerRun, 4};
+		int inputSize = env.getObservationSpace().dimensions[0];
+		int outputSize = env.getActionSpace().dimensions[0];
+		int[] inputDimensions = {trainingExamplesPerRun, inputSize};
 		int[] labelDimensions = {trainingExamplesPerRun}; // posision of 1 in one-hot vector for 1 training example
 		// int[] labelDimensions = {trainingExamplesPerRun, outputSize}; // index of the one in the one hot encoded action
 		int[] rewardDimensions = {trainingExamplesPerRun}; // The reward for the action
-		int[] hiddenNodes = {4};
+		int[] hiddenNodes = {hiddenNodesCount};
 		int[] vW1Size = {inputDimensions[1], hiddenNodes[0]};
 		int[] vB1Size = {vW1Size[1]};
 		int[] vW2Size = {vW1Size[1], outputSize};
@@ -69,8 +69,6 @@ public class PolicyCartPole{
 		graph.initializeVariablesUniformRange(-0.1, 0.1);
 
 		// Set up for policy gradient
-
-		CartPole env = new CartPole();
 		int epoch = 0;
 
 		double performance = 0;
@@ -81,7 +79,7 @@ public class PolicyCartPole{
 
 			epoch += 1;
 
-			ArrayList<CartPole.CartPoleObservation> observations = new ArrayList<CartPole.CartPoleObservation>();
+			ArrayList<Info> observations = new ArrayList<Info>();
 			ArrayList<Integer> actions = new ArrayList<Integer>();
 			ArrayList<Double> discountedRewards = new ArrayList<Double>();
 
@@ -98,7 +96,7 @@ public class PolicyCartPole{
 				ArrayList<Double> rewards = new ArrayList<Double>();
 				boolean finished = false;
 				
-				CartPole.CartPoleObservation obs = (CartPole.CartPoleObservation)env.reset();
+				Info obs = env.reset();
 				double episodeReward = 0;
 				while(!finished){
 
@@ -133,8 +131,8 @@ public class PolicyCartPole{
 					actionsSelected[action]++;
 
 					// Take action, get reward
-					CartPole.Action a = new CartPole.Action();
-					a.action = action;
+					Info a = env.createAction();
+					a.getInt1()[0] = action;
 					ROF rof = env.step(a);
 					finished = rof.finished;
 
@@ -145,7 +143,7 @@ public class PolicyCartPole{
 					episodeReward += rof.reward;
 
 					//System.out.println(obs.getDouble1()[0] + ":" + obs.getDouble1()[1] + ":" + obs.getDouble1()[2] + ":" + obs.getDouble1()[3]);
-					obs = (CartPole.CartPoleObservation)(rof.observation);
+					obs = (Info)(rof.observation);
 				}
 
 				performance += episodeReward;

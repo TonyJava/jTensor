@@ -14,10 +14,10 @@ public class PolicyRabbit{
 
 		// Params
 
-		final int episodesPerBatch = 10000;
+		final int episodesPerBatch = 10;
 		final double performanceGoal = 1000;
 		final double rewardDiscount = .99;
-		final double learningRate = .1;
+		final double learningRate = .01;
 		final int e_greedy_decay = 25; // reciprocal of decay
 
 
@@ -53,11 +53,12 @@ public class PolicyRabbit{
 		int xEntropy = graph.addOp(new Operations.SparseCrossEntropySoftmax(), tNet2, pLabels);
 		int loss = graph.addOp(new Operations.TensorScale(), xEntropy, pRewards);
 
+		int trainNode = graph.trainGradientDescent(learningRate, loss);
 
 		int[] runRequests = {y};
-		int[] trainRequests = {loss};
+		int[] trainRequests = {trainNode};
 
-		graph.initializeVariablesUniformRange(-2, 2);
+		graph.initializeVariablesUniformRange(-.5, .5);
 
 		// Set up for policy gradient
 
@@ -120,6 +121,8 @@ public class PolicyRabbit{
 					rewards.add(rof.reward);
 
 					episodeReward += rof.reward;
+
+					obs = (Rabbit.RabbitObservation)rof.observation;
 				}
 
 				performance += episodeReward;
@@ -131,6 +134,8 @@ public class PolicyRabbit{
 					rewards.set(j, currentReward);
 				}
 
+				normalize(rewards);
+
 				for(double r: rewards){
 					discountedRewards.add(r);
 				}
@@ -140,7 +145,7 @@ public class PolicyRabbit{
 			performance /= episodesPerBatch;
 			System.out.println("Steps: " + observations.size() + ", Performance: " + performance);
 
-			normalize(discountedRewards);
+			// normalize(discountedRewards);
 
 			Tensor pInputTensor = new Tensor(inputDimensions);
 			Tensor pLabelTensor = new Tensor(labelDimensions);

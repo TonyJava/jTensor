@@ -20,6 +20,9 @@ public abstract class Environment{
 	// Resets the environment, returns initial observation
 	public abstract Info reset();
 
+	// Returns initialized action object
+	public abstract Info createAction();
+
 	// Make action, return reward, observation, and finished flag
 	public ROF step(Info action){
 		ROF rof = nextState(state, action);

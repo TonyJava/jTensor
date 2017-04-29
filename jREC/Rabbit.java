@@ -17,7 +17,7 @@ public class Rabbit extends Environment{
 	private final double foodRadius = 10;
 	private final double rabbitRadius = 5;
 	private final double turnSize = Math.PI/16;
-	private final double[] arenaSize = {0, 0, 1000, 1000};
+	private final double[] arenaSize = {0, 0, 50, 50};
 	private final double arenaDiagonal = Math.sqrt(Math.pow(arenaSize[2], 2) + Math.pow(arenaSize[3], 2));
 
 	// Actions:
@@ -25,7 +25,20 @@ public class Rabbit extends Environment{
 	// 1: change dir right
 	// 2: move forward
 	public static class Action extends Info{
-		public int action;
+		public int[] action;
+
+		public Action(){
+			action = new int[1];
+		}
+
+		@Override
+		public int[] getInt1(){
+			return action;
+		}
+	}
+
+	public Info createAction(){
+		return new Action();      
 	}
 
 	public static class RabbitObservation extends Info{
@@ -108,7 +121,7 @@ public class Rabbit extends Environment{
 		// rof.reward = 0.0;
 		rof.reward = 1.0;
 		RabbitState rs = (RabbitState)state;
-		int choice = ((Action)action).action;
+		int choice = ((Action)action).action[0];
 		rs.rabbitHealth -= 1;
 		if(rs.rabbitHealth <= 0){
 			rof.finished = true;

@@ -31,9 +31,21 @@ public class CartPole extends Environment{
 	// 1: change dir right
 	// 2: move forward
 	public static class Action extends Info{
-		public int action;
+		public int[] action;
+
+		public Action(){
+			action = new int[1];
+		}
+
+		@Override
+		public int[] getInt1(){
+			return action;
+		}
 	}
 
+	public Info createAction(){
+		return new Action();      
+	}
 	public static class CartPoleObservation extends Info{
 		double[] data;
 
@@ -90,7 +102,7 @@ public class CartPole extends Environment{
 		CartPoleState state = (CartPoleState)infoState;
 		rof.nextState = state;
 
-		int action = ((Action)infoAction).action;
+		int action = ((Action)infoAction).action[0];
 
 		if(action != 0 && action != 1){
 			System.out.println("Problem");

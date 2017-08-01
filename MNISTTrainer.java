@@ -34,15 +34,20 @@ public class MNISTTrainer{
 			// if(j==0)data[j].output.printTensor();
 		}
 
-		
-		int[] inputDimensions = {1, 28 * 28};
-		int[] labelDimensions = {1};
+		int inputExamples = 16;
+		int[] inputDimensions = {inputExamples, 28, 28, 1};
+		int[] labelDimensions = {inputExamples};
 
-		int[] hiddenNodes = {64};
+		// int[] hiddenNodes = {16};
 
-		int[] vW1Size = {inputDimensions[1], 10};//hiddenNodes[0]};
-		int[] vW2Size = {hiddenNodes[0], 10};
-		int[] vB1Size = {vW1Size[1]};
+		int filters = 16;
+		int filterWidth = 6;
+		int stride = 2;
+		int outWidth = (inputDimensions[1] - (filterWidth - stride)) / stride;
+
+		int[] vW1Size = {filterWidth, filterWidth, 1, filters};//hiddenNodes[0]};
+		int[] vW2Size = {outWidth*outWidth*filters, 10};
+		int[] vB1Size = {outWidth*outWidth*filters};
 		int[] vB2Size = {vW2Size[1]};
 
 		Graph graph = new Graph();
@@ -55,12 +60,16 @@ public class MNISTTrainer{
 		int vBias2 = graph.createVariable(vB2Size);
 		int[] variables = {vWeights1, vWeights2};
 
-		int tMult1 = graph.addOp(new Operations.MatMult(), pInput, vWeights1);
-		int tNet1 = graph.addOp(new Operations.MatAddVec(), tMult1, vBias1);
-		int y = graph.addOp(new Operations.TensorSigmoid(), tNet1);
+		int tConv1 = graph.addOp(new Operations.Conv2d(stride), pInput, vWeights1);
+		int[] newShape = {inputExamples, vB1Size[0]};
+		int tMult1 = graph.addOp(new Operations.TensorReshape(newShape), tConv1);
+		// int tNet1 = graph.addOp(new Operations.MatAddVec(), tMult1, vBias1);
+		int tNet1 = graph.addOp(new Operations.TensorAdd(), tMult1, vBias1);
+		int h1 = graph.addOp(new Operations.TensorReLU(), tNet1);
 
-		// int tMult2 = graph.addOp(new Operations.MatMult(), h1, vWeights2);
-		// int tNet2 = graph.addOp(new Operations.MatAddVec(), tMult2, vBias2);
+		int tMult2 = graph.addOp(new Operations.MatMult(), h1, vWeights2);
+		int tNet2 = graph.addOp(new Operations.TensorAdd(), tMult2, vBias2);
+		int y = tNet2;
 		// int y = graph.addOp(new Operations.TensorSigmoid(), tNet2);
 
 		// int err = graph.addOp(new Operations.MatSub(), y, pLabels);
@@ -84,14 +93,15 @@ public class MNISTTrainer{
 		// int errorNode = graph.addOp(new Operations.TensorAdd(), sumNode, xEntropyError);
 
 		// int train = graph.trainMomentumMinimizer(0.1, 0.1, xEntropyError);
-		int train = graph.trainGradientDescent(0.0005, xEntropyError);
+		int train = graph.trainMinimizer(xEntropyError, new AdamMinimizerNode());
 
 		graph.printIdNames();
 
-		graph.initializeVariablesUniformRange(-0.01, 0.01);
+		graph.initializeVariables();
 
-		int trainBatch = 1000;
-		int trainingExamples = data.length - 10000;
+		int trainBatch = inputExamples;
+		int testSamples = 1000;
+		int trainingExamples = data.length - testSamples;
 
 		int[] idRequests = {y, xEntropyError, train};
 
@@ -105,35 +115,43 @@ public class MNISTTrainer{
 			int trainEnd = hitPercent < hitTarget ? trainingExamples : data.length;
 			int trainCount = trainEnd - trainStart;
 			int batchSize = trainBatch;
+			Tensor inputTensor = new Tensor(inputDimensions);
+			double[][][][] inputArray = (double[][][][])(inputTensor.getObject());
+			Tensor outputTensor = new Tensor(labelDimensions);
+			double[] outputArray = (double[])(outputTensor.getObject());
+			int[] sampleIndexes = new int[batchSize];
 			for(int j = 0; j < batchSize; j++){
 				int randomSample = (int)(Math.random() * trainCount) + trainStart;
-				
-				HashMap<Integer, Tensor> dict = new HashMap<Integer, Tensor>();
-				dict.put(pInput, data[randomSample].input);
-				dict.put(pLabels, data[randomSample].output);
+				sampleIndexes[j] = randomSample;
+				inputArray[j] = ((double[][][][])(data[randomSample].input.getObject()))[0];
+				outputArray[j] = ((double[])(data[randomSample].output.getObject()))[0];
+			}
+			
+			HashMap<Integer, Tensor> dict = new HashMap<Integer, Tensor>();
+			dict.put(pInput, inputTensor);
+			dict.put(pLabels, outputTensor);
 
-				Tensor[] graphOutput = graph.runGraph(idRequests, dict);
+			Tensor[] graphOutput = graph.runGraph(idRequests, dict);
 
-				double currentError = ((double[])(graphOutput[1].getObject()))[0];
-				int onIndex = answers[randomSample];
+			// double currentError = ((double[])(graphOutput[1].getObject()))[0];
+			double currentError = graphOutput[1].getSum();
 
-				double[][] networkOutput = (double[][])(graphOutput[0].getObject());
+			double[][] networkOutput = (double[][])(graphOutput[0].getObject());
 
-
+			for(int j = 0; j < batchSize; j++){
 				int index = 0;
-				double high = networkOutput[0][0];
-				for(int i = 1; i < networkOutput[0].length; i++){
-					if(networkOutput[0][i] > high){
-						high = networkOutput[0][i];
+				double high = networkOutput[j][0];
+				for(int i = 1; i < networkOutput[j].length; i++){
+					if(networkOutput[j][i] > high){
+						high = networkOutput[j][i];
 						index = i;
 					}
 				}
-
+				int onIndex = answers[sampleIndexes[j]];
 				hits += index == onIndex ? 1 : 0;
 
 				totalError += currentError;
 				// System.out.println("j = " + j + ", error: " + currentError);
-
 			}
 
 			boolean exit = hitPercent >= hitTarget;
@@ -224,7 +242,7 @@ public class MNISTTrainer{
 	// leave outputs blank
 	public TrainingData[] loadImages(String file){
 		BufferedInputStream br = null;
-		ArrayList<double[][]> images = new ArrayList<double[][]>();
+		ArrayList<double[][][][]> images = new ArrayList<double[][][][]>();
 
 		try {
 
@@ -279,16 +297,18 @@ public class MNISTTrainer{
 				// Runtime runtime = Runtime.getRuntime();
 				// if(j%1000 == 0)System.out.println("Free Memory(" + j + "): " + runtime.freeMemory() / (1024*1024));
 
-				double[][] image = new double[1][28 * 28];
+				double[][][][] image = new double[1][28][28][1];
 
-				for(int i = 0; i < 28*28; i++){
-					int b = br.read();
-					if(b != -1){
-						image[0][i] = (((double)b)/255)*.9 + .05;
-						// System.out.println("IM: "+ image[i/28][i%28][0]);
-					}else{
-						System.out.println("Error1!");
-						break out_Label;
+				for(int x = 0; x < 28; x++){
+					for(int y = 0; y < 28; y++){
+						int b = br.read();
+						if(b != -1){
+							image[0][x][y][0] = (((double)b)/255)*.9 + .05;
+							// System.out.println("IM: "+ image[i/28][i%28][0]);
+						}else{
+							System.out.println("Error1!");
+							break out_Label;
+						}
 					}
 				}
 				images.add(image);
@@ -300,7 +320,7 @@ public class MNISTTrainer{
 
 		TrainingData[] data = new TrainingData[images.size()];
 
-		int[] inputDimensions = {1, 28*28};
+		int[] inputDimensions = {1, 28, 28, 1};
 		for(int j = 0; j < data.length; j++){
 			data[j] = new TrainingData();
 			data[j].input = new Tensor(images.get(j), inputDimensions);

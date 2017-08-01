@@ -1,19 +1,18 @@
 package jTensor;
 
 public class VariableNode extends Node{
+
+	String name;
+	Initializer init;
 	
-	public VariableNode(int id, int[] dimensions){
+	public VariableNode(int id, int[] dimensions, String name, Initializer init){
 		super(id, dimensions);
+		this.name = name;
+		this.init = init;
 	}
 
-	public void initializeUniformRange(final double min, final double max){
-		final double range = max - min;
-		Tensor newTensor = new Tensor(getDimensions(), new InitOp(){
-			public double execute(int[] dimensions, Index index){
-				return Math.random() * range + min;
-			}
-		});
-		setTensor(newTensor);
+	public void initialize(){
+		init.initialize(this);
 	}
 
 	public boolean runNode(){

@@ -215,7 +215,8 @@ public class EvolutionRabbit{
 
 						// Take action, get reward
 						Rabbit.Action a = new Rabbit.Action();
-						a.action = action;
+						// a.action = action;
+						a.getInt1()[0] = action;
 						ROF rof = env.step(a);
 						finished = rof.finished;
 

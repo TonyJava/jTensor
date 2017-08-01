@@ -7,6 +7,7 @@ import javax.swing.JPanel;
 public abstract class Environment{
 
 	private JFrame jFrame = null;
+	protected int[] screenSize;
 	private boolean renderGraphics = true;
 
 	protected Info state;
@@ -46,10 +47,12 @@ public abstract class Environment{
 					public void paintComponent(Graphics g){
 						draw(g, state);
 						g.drawString(""+sketchVar++, 50, 50);
-						g.drawString(""+System.currentTimeMillis(), 100, 50);
+						// g.drawString(""+System.currentTimeMillis(), 100, 50);
 					}
 				});
 				jFrame.setSize(600, 600);
+				int[] t_screenSize = {0, 0, 600, 600};
+				screenSize = t_screenSize;
 				jFrame.setVisible(true);
 				jFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 			}else{
@@ -72,7 +75,7 @@ public abstract class Environment{
 
 	// Implementation for rendering env as a string
 	// Used for console (or any non-JFrame) output
-	// Will be called if draw(null, null) returns false
+	// Will be called if draw(null, null) returns true
 	protected void renderString(Info state){
 
 	}

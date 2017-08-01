@@ -1,5 +1,10 @@
 package jTensor;
 
+/*
+	To increase max dimensions change all places in this fileand the following files:
+		- VariableState.java
+*/
+
 public class Tensor{
 		private Object object;
 		private int[] dimensions; // don't change (no setter)
@@ -8,12 +13,12 @@ public class Tensor{
 		public Tensor(Object object, int[] dimensions){
 			this.object = object;
 			this.dimensions = dimensions;
-			order = dimensions.length;
+			this.order = dimensions.length;
 		}
 
 		public Tensor(int[] dimensions){
 			this.dimensions = dimensions;
-			order = dimensions.length;
+			this.order = dimensions.length;
 			switch(order){
 				case 0: object = 0;break;
 				case 1: object = new double[dimensions[0]];break;
@@ -139,6 +144,52 @@ public class Tensor{
 
 		public Tensor(Tensor tensor){
 			this(tensor, CopyOp.identity);
+		}
+
+		// Increases rank by concatenating in the first dimension
+		public static Tensor combineTensors(Tensor[] tensors){
+			int[] dimensions = tensors[0].dimensions;
+			int tensorOrder = tensors[0].order;
+			Object combinedObject = null;
+			switch(tensorOrder){
+				case 0: {
+					double[] combined = new double[tensors.length];
+					for(int j = 0; j < tensors.length; j++){
+						combined[j] = (Double)(tensors[j].getObject());
+					}
+					combinedObject = combined;
+				} break;
+				case 1: {
+					double[][] combined = new double[tensors.length][];
+					for(int j = 0; j < tensors.length; j++){
+						combined[j] = (double[])(tensors[j].getObject());
+					}
+					combinedObject = combined;
+				} break;
+				case 2: {
+					double[][][] combined = new double[tensors.length][][];
+					for(int j = 0; j < tensors.length; j++){
+						combined[j] = (double[][])(tensors[j].getObject());
+					}
+					combinedObject = combined;
+				} break;
+				case 3: {
+					double[][][][] combined = new double[tensors.length][][][];
+					for(int j = 0; j < tensors.length; j++){
+						combined[j] = (double[][][])(tensors[j].getObject());
+					}
+					combinedObject = combined;
+				} break;
+				default: System.out.println("Unexpected order");
+			}
+
+			int[] newDimension = new int[dimensions.length + 1];
+			newDimension[0] = tensors.length;
+			for(int j = 0; j < dimensions.length; j++){
+				newDimension[j + 1] = dimensions[j];
+			}
+
+			return new Tensor(combinedObject, newDimension);
 		}
 
 		public void copyTo(Tensor destTensor, CopyOp op){
@@ -267,7 +318,7 @@ public class Tensor{
 			}
 		}
 
-		class AvgCountWrapper{
+		private class AvgCountWrapper{
 			double sum;
 			int count;
 		}
@@ -284,6 +335,18 @@ public class Tensor{
 				}
 			});
 			return avgCount.sum/avgCount.count;
+		}
+
+		public double getSum(){
+			final AvgCountWrapper avgCount = new AvgCountWrapper();
+			avgCount.sum = 0;
+			operate(new CopyOp(){
+				public double execute(double value, Index index){
+					avgCount.sum += value;
+					return value;
+				}
+			});
+			return avgCount.sum;
 		}
 
 		public double getAverageMagnitude(){
@@ -312,16 +375,32 @@ public class Tensor{
 			return order;
 		}
 
-		public void printTensor(){
-			Index index = new Index(getOrder());
-			int size = 1;
-			for(int j = 0; j < getOrder(); j++){
-				size *= getDimensions()[j];
+		public int getSize(){
+			int total = 1;
+			for(int j = 0; j < dimensions.length; j++){
+				total *= dimensions[j];
 			}
-			size = size > 30 ? 30 : size;
-			do{
-				System.out.print(getValue(index) + ", ");
-			}while(index.increment(this) && (size--) > 0);
+			return total;
+		}
+
+		public void printTensor(){
+			// Index index = new Index(getOrder());
+			// int size = 1;
+			// for(int j = 0; j < getOrder(); j++){
+			// 	size *= getDimensions()[j];
+			// }
+			// size = size > 30 ? 30 : size;
+			// do{
+			// 	System.out.print(getValue(index) + ", ");
+			// }while(index.increment(this) && (size--) > 0);
+			// System.out.print("\n");
+
+			operate(new CopyOp(){
+				public double execute(double input, Index index){
+					System.out.print(input + ", ");
+					return input;
+				}
+			});
 			System.out.print("\n");
 		}
 }

@@ -12,12 +12,12 @@ public class Rabbit extends Environment{
 	// o[1]: normalized distance to food
 
 	// Params
-	private final double startingHealth = 100;
-	private final double hopDistance = 3.0;
+	private final double startingHealth = 500;
+	private final double hopDistance = 10.0;
 	private final double foodRadius = 10;
-	private final double rabbitRadius = 5;
+	private final double rabbitRadius = 10;
 	private final double turnSize = Math.PI/16;
-	private final double[] arenaSize = {0, 0, 50, 50};
+	private final double[] arenaSize = {0, 0, 1000, 1000};
 	private final double arenaDiagonal = Math.sqrt(Math.pow(arenaSize[2], 2) + Math.pow(arenaSize[3], 2));
 
 	// Actions:
@@ -79,6 +79,8 @@ public class Rabbit extends Environment{
 		RabbitObservation ro = new RabbitObservation();
 		ro.data = new double[4];
 		ro.data[0] = Math.atan2(state.foodY - state.rabbitY, state.foodX - state.rabbitX);
+		//ro.data[0] = (state.foodY - state.rabbitY) / (arenaDiagonal);
+		//ro.data[1] = (state.foodX - state.rabbitX) / (arenaDiagonal);
 		ro.data[1] = Math.sqrt(Math.pow(state.foodX - state.rabbitX, 2) + Math.pow(state.foodY - state.rabbitY, 2)) / (arenaDiagonal);
 		ro.data[2] = (arenaSize[2]/2 - state.rabbitX) / (arenaDiagonal);
 		ro.data[3] = (arenaSize[3]/2 - state.rabbitY) / (arenaDiagonal);
@@ -118,7 +120,7 @@ public class Rabbit extends Environment{
 	// Implementation for next state
 	protected ROF nextState(Info state, Info action){
 		ROF rof = new ROF();
-		// rof.reward = 0.0;
+		//rof.reward = 0.0;
 		rof.reward = 1.0;
 		RabbitState rs = (RabbitState)state;
 		int choice = ((Action)action).action[0];
@@ -134,9 +136,9 @@ public class Rabbit extends Environment{
 			// rof.reward = 1/distance;
 
 			if(distance <= foodRadius + rabbitRadius){
-				rs.rabbitHealth += 100;
+				rs.rabbitHealth += startingHealth;
 				spawnFood();
-				// rof.reward = 1.0;
+				//rof.reward = 1.0;
 
 			}
 
@@ -144,21 +146,32 @@ public class Rabbit extends Environment{
 				double modifier = choice == 0 ? 1 : -1;
 				rs.rabbitDir += modifier * turnSize;
 				rs.rabbitDir = rs.rabbitDir % (2 * Math.PI);
-			}else{ // Move forward
+			}else{
+				// Move forward
 				rs.rabbitX += hopDistance * Math.cos(rs.rabbitDir);
 				rs.rabbitY += hopDistance * Math.sin(rs.rabbitDir);
-				
-				if(rs.rabbitX < arenaSize[0]){
-					rs.rabbitX = arenaSize[0];
-				}else if(rs.rabbitX > arenaSize[2]){
-					rs.rabbitX = arenaSize[2];
-				}
+			}
+			
 
-				if(rs.rabbitY < arenaSize[1]){
-					rs.rabbitY = arenaSize[1];
-				}else if(rs.rabbitY > arenaSize[3]){
-					rs.rabbitY = arenaSize[3];
-				}
+			/*
+			switch(choice){
+				case 0: rs.rabbitY += hopDistance;break; // Down
+				case 1: rs.rabbitY -= hopDistance;break; // Up
+				case 2: rs.rabbitX += hopDistance;break; // Right
+				case 3: rs.rabbitX -= hopDistance;break; // Left
+				default: return null;
+			}
+			*/
+
+			if(rs.rabbitX < arenaSize[0]){
+				rs.rabbitX = arenaSize[0];
+			}else if(rs.rabbitX > arenaSize[2]){
+				rs.rabbitX = arenaSize[2];
+			}
+			if(rs.rabbitY < arenaSize[1]){
+				rs.rabbitY = arenaSize[1];
+			}else if(rs.rabbitY > arenaSize[3]){
+				rs.rabbitY = arenaSize[3];
 			}
 
 		}
@@ -189,6 +202,7 @@ public class Rabbit extends Environment{
 		g.fillArc((int)(rs.rabbitX - rabbitRadius), (int)(rs.rabbitY - rabbitRadius), (int)(rabbitRadius * 2), (int)(rabbitRadius * 2), 0, (int)((rs.rabbitHealth / 100.0) * 360));
 		g.setColor(Color.BLACK);
 		g.drawOval((int)(rs.rabbitX - rabbitRadius), (int)(rs.rabbitY - rabbitRadius), (int)(rabbitRadius * 2), (int)(rabbitRadius * 2));
+		g.drawLine((int)rs.rabbitX, (int)rs.rabbitY, (int)(rs.rabbitX + Math.cos(rs.rabbitDir) * 2 * rabbitRadius), (int)(rs.rabbitY + Math.sin(rs.rabbitDir) * 2 * rabbitRadius));
 
 		return true;
 	}

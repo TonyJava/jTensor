@@ -32,7 +32,7 @@ public class EvolutionCartPole{
 	final double mutateStdDev = 0.1;
 	final double mutateChance = .05;
 	final int rollouts = 10;
-	final int initPopSize = 10000;
+	final int initPopSize = 1000;
 	final int reproductionFactor = 4;
 	final int randomOffspring = 50;
 
@@ -215,7 +215,8 @@ public class EvolutionCartPole{
 
 						// Take action, get reward
 						CartPole.Action a = new CartPole.Action();
-						a.action = action;
+						// a.action = action;
+						a.getInt1()[0] = action;
 						ROF rof = env.step(a);
 						finished = rof.finished;
 

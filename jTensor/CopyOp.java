@@ -9,4 +9,10 @@ public abstract class CopyOp{
 			return input;
 		}
 	};
+
+	public static final CopyOp zero = new CopyOp(){
+		public double execute(double input, Index index){
+			return 00;
+		}
+	};
 }

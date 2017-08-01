@@ -7,9 +7,8 @@ public class MomentumMinimizerNode extends TrainingNode{
 	private double learningRate;
 	private double momentumRate;
 	private ArrayList<Tensor> lastUpdate;
-
-	public MomentumMinimizerNode(int id, double learningRate, double momentumRate){
-		super(id);
+	public MomentumMinimizerNode(double learningRate, double momentumRate){
+		super();
 		this.learningRate = learningRate;
 		this.momentumRate = momentumRate;
 		lastUpdate = new ArrayList<Tensor>();

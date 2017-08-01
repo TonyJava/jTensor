@@ -6,7 +6,7 @@ public abstract class Node{
 
 	protected Tensor tensor = null;
 	private int[] dimensions;
-	private int id;
+	protected int id;
 
 	public Node(int id, int[] dimensions){
 		this.id = id;

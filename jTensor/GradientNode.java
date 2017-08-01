@@ -2,8 +2,8 @@ package jTensor;
 
 public class GradientNode extends TrainingNode{
 
-	public GradientNode(int id){
-		super(id);
+	public GradientNode(){
+		super();
 	}
 
 	public boolean runNode(){

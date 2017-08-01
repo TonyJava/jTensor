@@ -1,3 +1,5 @@
+import jTensor.*;
+
 import java.util.HashMap;
 
 public class ManualSmallTest{
@@ -23,8 +25,8 @@ public class ManualSmallTest{
 		int vBias2 = graph.createVariable(vB2Size);
 
 		int tMult1 = graph.addOp(new Operations.MatMult(), pInput, vWeights1);
-		int tNet1 = graph.addOp(new Operations.MatAddVec(), tMult1, vBias1);
-		int y = graph.addOp(new Operations.TensorSigmoid(), tNet1);
+		int y = graph.addOp(new Operations.MatAddVec(), tMult1, vBias1);
+		// int y = graph.addOp(new Operations.TensorSigmoid(), tNet1);
 
 		// int tMult2 = graph.addOp(new Operations.MatMult(), h1, vWeights2);
 		// int tNet2 = graph.addOp(new Operations.MatAddVec(), tMult2, vBias2);
@@ -37,7 +39,7 @@ public class ManualSmallTest{
 		int out = y;
 		int errSums = err_sum;
 
-		int train = graph.trainGradientDescent(.1, errSums);
+		int train = graph.trainMinimizer(errSums, new GradientDescentNode(.1));
 
 		// double[][] weights1 = new double[4][2];
 		// weights1[0][0] = .1;
@@ -69,7 +71,7 @@ public class ManualSmallTest{
 		// bias2[0] = .1;
 		// Tensor pBias2Tensor = new Tensor(bias2, vB2Size);
 
-		graph.initializeVariablesUniformRange(-1, 1);
+		graph.initializeVariables();
 		// graph.setVariable(vWeights1, pWeight1Tensor);
 		// graph.setVariable(vWeights2, pWeight2Tensor);
 		// graph.setVariable(vBias1, pBias1Tensor);
@@ -92,15 +94,15 @@ public class ManualSmallTest{
 
 		double[][] labels = new double[2][2];
 		labels[0][0] = 1;
-		labels[0][1] = 0;
-		labels[1][0] = .5;
+		labels[0][1] = -1;
+		labels[1][0] = 2.5;
 		labels[1][1] = .3;
 		Tensor pLabelTensor = new Tensor(labels, labelsSize);
 		
 		dict.put(pInput, pInputTensor);
 		dict.put(pLabels, pLabelTensor);
 
-		for(int epoch = 0; epoch < 100; epoch++){
+		for(int epoch = 0; epoch < 10; epoch++){
 
 			int[] idRequests = {out, errSums, train};
 			

@@ -8,6 +8,7 @@ public abstract class TensorOperation{
 
 	// Gives tensor output dimensions given array of input dimensions (by default identity)
 	// returns null if illegal input
+	// Is checked every run to see if a tensor can be reused
 	public int[] getOutputDimensions(int[][] inputDimensions){
 		return inputDimensions[0];
 	}
@@ -21,6 +22,12 @@ public abstract class TensorOperation{
 		};
 		int[] inputsNeeded = {};
 		return new TensorDerivativeInfo(derivativeOp, inputsNeeded);
+	}
+
+	// Returns gradients of operation with respect to given input (index base 0 of execute param)
+	// If returns null, getDerivative(final int) will be called instead
+	public TensorDerivativeInfo getDerivative(final int inputIndex, int[][] inputDimensions){
+		return null;
 	}
 	
 	public static class TensorDerivativeInfo{

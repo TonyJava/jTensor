@@ -1,9 +1,6 @@
 package jTensor;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.ArrayList;
-import java.util.Stack;
+import java.util.*;
 
 public class Graph{
 
@@ -13,6 +10,7 @@ public class Graph{
 	private static int idCounter = 0;
 	private HashMap<Integer, Node> idNodeTable;
 	private ArrayList<VariableNode> variableNodes;
+	private HashMap<String, VariableNode> namedVariables;
 
 	private int getNextId(){
 		int nextId = idCounter;
@@ -22,6 +20,7 @@ public class Graph{
 
 	public Graph(){
 		variableNodes = new ArrayList<VariableNode>();
+		namedVariables = new HashMap<String, VariableNode>();
 		idNodeTable = new HashMap<Integer, Node>();
 	}
 
@@ -29,11 +28,29 @@ public class Graph{
 		return idNodeTable.get(nodeId).getDimensions();
 	}
 
+	public int[] getVariableIds(){
+		int[] varIds = new int[variableNodes.size()];
+		for(int j = 0; j < varIds.length; j++){
+			varIds[j] = variableNodes.get(j).getId();
+		}
+		return varIds;
+	}
+
 	public void printIdNames(){
 		for(int j = 0; j < idCounter; j++){
 			Node n = idNodeTable.get(j);
 			String opName = n instanceof OpNode && ((OpNode)n).getOperation() != null ? ((OpNode)n).getOperation().getClass().getSimpleName() : "";
-			System.out.println("Node " + j + ": " + n.getClass().getSimpleName() + " " + opName);
+			String dims = "[";
+			int[] nDimensions = n.getDimensions();
+			if(nDimensions != null){
+				for(int d : nDimensions){
+					dims = dims + d + ", ";
+				}
+				dims = dims.substring(0, dims.length() - 2) + "]";
+			}else{
+				dims += "]";
+			}
+			System.out.println("Node " + j + ": " + n.getClass().getSimpleName() + " " + opName + ", " + dims);
 		}
 	}
 
@@ -63,7 +80,7 @@ public class Graph{
 
 	public Tensor[] runGraph(int[] idRequests, HashMap<Integer, Tensor> placeHolderValues){
 
-		HashSet<OpNode> neededNodes = new HashSet<OpNode>();
+		ArrayList<OpNode> neededNodes = new ArrayList<OpNode>();
 		ArrayList<PlaceHolderNode> placeHoldersWithInput = new ArrayList<PlaceHolderNode>();
 
 		// find and fill placeholders
@@ -101,7 +118,6 @@ public class Graph{
 		// System.out.println("neededNodes: " + neededNodes.size());
 
 		// reset opNodes
-		// Iterating over hashset = Bad
 		for(OpNode node: neededNodes){
 			node.reset();
 		}
@@ -131,9 +147,9 @@ public class Graph{
 
 	}
 
-	public void initializeVariablesUniformRange(double min, double max){
+	public void initializeVariables(){
 		for(VariableNode node: variableNodes){
-			node.initializeUniformRange(min, max);
+			node.initialize();
 		}
 		System.out.println("Total parameters: " + getParameterCount());
 	}
@@ -143,31 +159,25 @@ public class Graph{
 		node.setTensor(tensor);
 	}
 
-	public int trainGradientDescent(double learningRate, int target){
+	public int trainMinimizer(int target, TrainingNode trainingNode){
 		int trainId = getNextId();
-		TrainingNode trainingNode = new GradientDescentNode(trainId, learningRate);
+		trainingNode.setId(trainId);
 		idNodeTable.put(trainId, trainingNode);
-
 		initTraining(target, trainingNode);
-
 		return trainId;
 	}
 
-	public int trainMomentumMinimizer(double learningRate, double momentumRate, int target){
+	public int[][] trainRawMinimizer(int target, TrainingNode trainingNode){
 		int trainId = getNextId();
-		TrainingNode trainingNode = new MomentumMinimizerNode(trainId, learningRate, momentumRate);
+		trainingNode.setId(trainId);
 		idNodeTable.put(trainId, trainingNode);
-
-		initTraining(target, trainingNode);
-
-		return trainId;
+		return trainRawGradients(target, trainingNode);
 	}
 
 	// Returns int[][] = [ [trainId], [gradientNodeIds, ...], [gradientInputPlaceholderIds, ....]  ]
-	public int[][] trainRawGradients(int target){
-		int trainId = getNextId();
-		TrainingNode trainingNode = new GradientNode(trainId);
-		idNodeTable.put(trainId, trainingNode);
+	private int[][] trainRawGradients(int target, TrainingNode tNode){
+		TrainingNode trainingNode = tNode;
+		int trainId = trainingNode.getId();
 		initTraining(target, trainingNode);
 
 		ArrayList<VariableNode> updateTargets = trainingNode.getUpdateTargets();
@@ -202,7 +212,7 @@ public class Graph{
 		return retArray;
 	}
 
-	public void initTraining(int target, TrainingNode trainingNode){
+	private void initTraining(int target, TrainingNode trainingNode){
 
 		OpNode targetNode = (OpNode)idNodeTable.get(target);
 
@@ -229,17 +239,24 @@ public class Graph{
 			Node lastGradientNode = branchGradientNodes.pop();
 
 			ArrayList<Node> currentNodeInputs = currentNode.getInputs();
+
+			int[][] currentNodeInputSizes = new int[currentNodeInputs.size()][];
 			for(int j = 0; j < currentNodeInputs.size(); j++){
 				Node currentInput = currentNodeInputs.get(j);
+				currentNodeInputSizes[j] = currentInput.getDimensions();
+			}			
 
+			for(int j = 0; j < currentNodeInputs.size(); j++){
+				Node currentInput = currentNodeInputs.get(j);
 
 				if(currentInput instanceof PlaceHolderNode){
 					continue;
 				}
 
-
-
-				TensorOperation.TensorDerivativeInfo derivOpInfo = currentNode.getOperation().getDerivative(j);
+				TensorOperation.TensorDerivativeInfo derivOpInfo = currentNode.getOperation().getDerivative(j, currentNodeInputSizes);
+				if(derivOpInfo == null){
+					derivOpInfo = currentNode.getOperation().getDerivative(j);
+				}
 
 				ArrayList<Node> inputsToNewNode = new ArrayList<Node>();
 				inputsToNewNode.add(lastGradientNode); // add gradients as first input always
@@ -247,13 +264,14 @@ public class Graph{
 					inputsToNewNode.add(currentNodeInputs.get(inputNum));
 				}
 
-				int[][] inputSizes = new int[inputsToNewNode.size()][];
-				for(int i = 0; i < inputsToNewNode.size(); i++){
-					Node currentNewNodeInput = inputsToNewNode.get(i);
-					inputSizes[i] = currentNewNodeInput.getDimensions();
-				}
+				// int[][] inputSizes = new int[inputsToNewNode.size()][];
+				// for(int i = 0; i < inputsToNewNode.size(); i++){
+				// 	Node currentNewNodeInput = inputsToNewNode.get(i);
+				// 	inputSizes[i] = currentNewNodeInput.getDimensions();
+				// }
 
-				int[] newNodeDimensions = derivOpInfo.op.getOutputDimensions(inputSizes);
+				// int[] newNodeDimensions = derivOpInfo.op.getOutputDimensions(inputSizes);
+				int[] newNodeDimensions = currentInput.getDimensions();
 
 				int newId = getNextId();
 				OpNode newNode = new OpNode(newId, newNodeDimensions, derivOpInfo.op);
@@ -274,7 +292,26 @@ public class Graph{
 			}
 
 		}
+	}
 
+	public VariableState saveVariableState(){
+		VariableState vs = new VariableState();
+		for(VariableNode variableNode : variableNodes){
+			if(variableNode.name.charAt(0) != '_'){
+				vs.addVariable(variableNode);
+			}
+		}
+		return vs;
+	}
+
+	public void loadVariableState(VariableState vs){
+		Iterator it = vs.map.entrySet().iterator();
+	    while (it.hasNext()) {
+	        Map.Entry pair = (Map.Entry)it.next();
+	        String name = (String)(pair.getKey());
+	        Tensor value = (Tensor)(pair.getValue());
+	        namedVariables.get(name).setTensor(value);
+	    }
 	}
 
 	// -1 as a dimension size for any amount
@@ -285,10 +322,48 @@ public class Graph{
 		return id;
 	}
 
-	public int createVariable(int[] dimensions){
+	public int createConstantNode(Tensor tensor){
 		int id = getNextId();
-		VariableNode variableNode = new VariableNode(id, dimensions);
+		ConstantNode constantNode = new ConstantNode(id, tensor);
+		idNodeTable.put(id, constantNode);
+		return id;
+	}
+
+	// Unnamed varibles are prepended with "_" and therefore aren't saved by default
+	public int createVariable(int[] dimensions){
+		return createNamedVariable(null, dimensions, null);
+	}
+
+	public int createVariable(String name, int[] dimensions){
+		return createNamedVariable(name, dimensions, null);
+	}
+
+	// Unnamed varibles are prepended with "_" and therefore aren't saved by default
+	public int createVariable(int[] dimensions, Initializer init){
+		return createNamedVariable(null, dimensions, init);
+	}
+
+	public int createVariable(String name, int[] dimensions, Initializer init){
+		return createNamedVariable(name, dimensions, init);
+	}
+
+	private int createNamedVariable(String name, int[] dimensions, Initializer init){
+		int id = getNextId();
+		if(name == null){
+			name = "_" + id;
+		}
+		if(init == null){
+			// Default initializer uniform Glorot/Xavier inspired
+			int dimensionSum = 0;
+			for(int j = 0; j < dimensions.length; j++){
+				dimensionSum += dimensions[j];
+			}
+			double range = Math.sqrt(6.0/dimensionSum)*2;
+			init = new Initializer.UniformInitializer(range, 0);
+		}
+		VariableNode variableNode = new VariableNode(id, dimensions, name, init);
 		idNodeTable.put(id, variableNode);
+		namedVariables.put(name, variableNode);
 		variableNodes.add(variableNode);
 		return id;
 	}
@@ -312,119 +387,5 @@ public class Graph{
 
 		return id;
 	}
-
-	// public int opMatMult(int t1, int t2){
-	// 	Node node1 = idNodeTable.get(t1);
-	// 	Node node2 = idNodeTable.get(t2);
-	// 	int[] node1Dimensions = node1.getDimensions();
-	// 	int[] node2Dimensions = node2.getDimensions();
-
-	// 	if(node1Dimensions.length != 2 || node2Dimensions.length != 2 || node1Dimensions[1] != node2Dimensions[0]){
-	// 		System.out.println("OpError: MatMult input sizes");
-	// 	}
-
-	// 	int[] nodeOutDimensions = {node1Dimensions[0], node2Dimensions[1]};
-	// 	int id = getNextId();
-	// 	OpNode outputNode = new OpNode(id, nodeOutDimensions, new Operations.MatMul());
-	// 	outputNode.addInput(node1, node2);
-	// 	idNodeTable.put(id, outputNode);
-
-	// 	return id;
-	// }
-
-
-
-	// public int opMatAddVec(int t1, int t2){
-	// 	Node node1 = idNodeTable.get(t1);
-	// 	Node node2 = idNodeTable.get(t2);
-	// 	int[] node1Dimensions = node1.getDimensions();
-	// 	int[] node2Dimensions = node2.getDimensions();
-
-	// 	if(node1Dimensions.length != 2 || node2Dimensions.length != 1 || node1Dimensions[1] != node2Dimensions[0]){
-	// 		System.out.println("OpError: MatAddVec input sizes");
-	// 	}
-
-	// 	int[] nodeOutDimensions = {node1Dimensions[0], node1Dimensions[1]};
-	// 	int id = getNextId();
-	// 	OpNode outputNode = new OpNode(id, nodeOutDimensions, new Operations.MatAddVec());
-	// 	outputNode.addInput(node1, node2);
-	// 	idNodeTable.put(id, outputNode);
-		
-	// 	return id;
-	// }
-
-	// public int opMatSub(int t1, int t2){
-	// 	Node node1 = idNodeTable.get(t1);
-	// 	Node node2 = idNodeTable.get(t2);
-	// 	int[] node1Dimensions = node1.getDimensions();
-	// 	int[] node2Dimensions = node2.getDimensions();
-
-	// 	if(node1Dimensions.length != 2 || node2Dimensions.length != 2 || node1Dimensions[0] != node2Dimensions[0] || node1Dimensions[1] != node2Dimensions[1]){
-	// 		System.out.println("OpError: MatSub input sizes");
-	// 	}
-
-	// 	int[] nodeOutDimensions = {node1Dimensions[0], node1Dimensions[1]};
-	// 	int id = getNextId();
-	// 	OpNode outputNode = new OpNode(id, nodeOutDimensions, new Operations.MatSub());
-	// 	outputNode.addInput(node1, node2);
-	// 	idNodeTable.put(id, outputNode);
-		
-	// 	return id;
-	// }
-
-	// public int opTensorSigmoid(int t1){
-	// 	Node node1 = idNodeTable.get(t1);
-	// 	int[] node1Dimensions = node1.getDimensions();
-	// 	int[] nodeOutDimensions = node1Dimensions;
-	// 	int id = getNextId();
-	// 	OpNode outputNode = new OpNode(id, nodeOutDimensions, new Operations.TensorSigmoid());
-	// 	outputNode.addInput(node1);
-	// 	idNodeTable.put(id, outputNode);
-		
-	// 	return id;
-	// }
-
-	// public int opTensorReLU(int t1){
-	// 	Node node1 = idNodeTable.get(t1);
-	// 	int[] node1Dimensions = node1.getDimensions();
-	// 	int[] nodeOutDimensions = node1Dimensions;
-	// 	int id = getNextId();
-	// 	OpNode outputNode = new OpNode(id, nodeOutDimensions, new Operations.TensorReLU());
-	// 	outputNode.addInput(node1);
-	// 	idNodeTable.put(id, outputNode);
-		
-	// 	return id;
-	// }
-
-	// public int opTensorSquare(int t1){
-	// 	Node node1 = idNodeTable.get(t1);
-	// 	int[] node1Dimensions = node1.getDimensions();
-	// 	int[] nodeOutDimensions = node1Dimensions;
-	// 	int id = getNextId();
-	// 	OpNode outputNode = new OpNode(id, nodeOutDimensions, new Operations.TensorSquare());
-	// 	outputNode.addInput(node1);
-	// 	idNodeTable.put(id, outputNode);
-		
-	// 	return id;
-	// }
-
-	// public int opMatSumCols(int t1){
-	// 	Node node1 = idNodeTable.get(t1);
-	// 	int[] node1Dimensions = node1.getDimensions();
-
-	// 	if(node1Dimensions.length != 2){
-	// 		System.out.println("OpError: MatAddVec input sizes");
-	// 	}
-
-	// 	int[] nodeOutDimensions = {node1Dimensions[0]};
-	// 	int id = getNextId();
-	// 	OpNode outputNode = new OpNode(id, nodeOutDimensions, new Operations.MatSumCols());
-	// 	outputNode.addInput(node1);
-	// 	idNodeTable.put(id, outputNode);
-		
-	// 	return id;
-	// }
-
-
 
 }

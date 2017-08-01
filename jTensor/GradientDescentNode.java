@@ -4,8 +4,8 @@ public class GradientDescentNode extends TrainingNode{
 
 	private double learningRate;
 
-	public GradientDescentNode(int id, double learningRate){
-		super(id);
+	public GradientDescentNode(double learningRate){
+		super();
 		this.learningRate = learningRate;
 	}
 
